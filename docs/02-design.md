@@ -5,9 +5,11 @@
 | 프로젝트명 | 악보 배우기 (Music Theory Trainer) |
 | 문서 종류 | 설계 문서 (Design) |
 | 작성일 | YYYY-MM-DD |
-| 버전 | v0.2 |
+| 버전 | v0.3 |
 | 대상 독자 | 프론트엔드 구현 담당 / 리뷰어 |
 | 스택 | 무빌드 바닐라 JS (ES Modules) · SVG 직접 렌더 · Web Audio · Vercel 정적 배포 |
+
+> **v0.3 변경**: ① 정답/오답 효과음을 청각적으로 명확히 구분(정답=상승 차임 `playCorrect`, 오답=하강 버저 `playWrong`). ② 모드 A 음자리표를 홈에서 **선택**(높은음/낮은음/둘 다, `state.clef`) — 기존엔 난이도에 종속돼 기본이 높은음자리표만 출제됨.
 
 ---
 
@@ -190,6 +192,10 @@ export const state = {
   route: '',                  // 현재 해시 라우트
   audioEnabled: true,
   volume: 0.3,
+  total: 10,                  // 스테이지 문항 수 (5 | 10)
+  difficulty: 'easy',         // 'easy' | 'normal' (모드 B 방향·모드 C 유형)
+  clef: 'treble',             // 모드 A 음자리표: 'treble' | 'bass' | 'both'  (홈에서 선택)
+  activeModeId: null,         // 진행 중 모드 id
   quiz: null,                 // 활성 퀴즈 세션 (§4.2가 채움)
 };
 
@@ -426,6 +432,8 @@ export const MODES = [clefPosition, noteMatching, keyOrder];
 ### 6.2 모드 A — 음자리표 음 위치 (Note Reading)
 **목표**: 오선 위치 ↔ 계이름/영문 양방향 + 음자리표 전환.
 
+**음자리표 선택(F-02)**: 홈에서 **높은음자리표 / 낮은음자리표 / 둘 다**를 고른다(`state.clef`). `generate()`가 이 값으로 출제 음자리표를 결정한다 — `'treble'`→높은음, `'bass'`→낮은음, `'both'`→매 문제 랜덤. **난이도와 분리**(기존엔 난이도에 종속돼 기본이 높은음자리표만 출제되던 문제 해소). 모드 B·C는 `clef`를 무시한다.
+
 | 유형 | 제시 | 입력 | 판정 |
 |---|---|---|---|
 | A-읽기 (MVP) | 오선에 음표 1개 SVG | 보기 4지선다 | 선택 == 정답 이름? |
@@ -527,10 +535,10 @@ export const MODES = [clefPosition, noteMatching, keyOrder];
 │   │ 음 위치 찾기 │  │ 도레미↔ABC   │            │
 │   │  [ 시작 ]    │  │  [ 시작 ]    │            │
 │   └─────────────┘  └─────────────┘            │
-│   ┌─────────────┐   난이도: [쉬움|보통]        │
-│   │  ♯ F C G…    │   문항수:  [5 |10]           │
-│   │ 조표 순서    │                              │
-│   │  [ 시작 ]    │                              │
+│   ┌─────────────┐   음자리표: [𝄞|𝄢|둘다]       │
+│   │  ♯ F C G…    │   난이도: [쉬움|보통]        │
+│   │ 조표 순서    │   문항수:  [5 |10]           │
+│   │  [ 시작 ]    │   (음자리표는 모드 A에 적용)  │
 │   └─────────────┘                              │
 └───────────────────────────────────────────────┘
 ```
@@ -598,8 +606,9 @@ export const MODES = [clefPosition, noteMatching, keyOrder];
 @keyframes shake{ 0%,100%{transform:translateX(0)} 25%{transform:translateX(-4px)} 75%{transform:translateX(4px)} }
 @media (prefers-reduced-motion: reduce){ .pop,.shake{ animation:none } }  /* 색·아이콘만 */
 ```
-- 정답: `--ok-050` + ✓ + pop + 해당 음 재생 + 니모닉 글자 하이라이트.
-- 오답: `--bad-050` + ✗ + shake + `playWrong` 버저, 그 후 정답 자동 점등 + 미니 설명.
+- 정답: `--ok-050` + ✓ + pop + **`playCorrect()` 상승 차임(구별되는 성공 효과음)** + 해당 음 재생 + 니모닉 하이라이트.
+- 오답: `--bad-050` + ✗ + shake + **`playWrong()` 하강 버저(구별되는 실패 효과음)**, 그 후 정답 음 재생 + 미니 설명.
+- > **효과음 구분 원칙**: 정답=사인파 **상승**(E5→A5), 오답=사각파 **하강**(220→155Hz). 파형·음정 방향이 정반대라 소리만으로 즉시 정답/오답을 구분한다.
 - 니모닉 힌트: 기본 접힘(💡), 탭 시 펼침, **오답 시 자동 펼침**(항상 표시, 설정 옵션 없음 — 설정은 최소로 유지).
 
 ---
@@ -766,7 +775,7 @@ window.addEventListener('keydown', armAudio);
 각 `playNote`도 `suspended`면 `resume()` 재시도 → 탭 복귀 엣지 케이스 흡수.
 
 ### 9.6 학습 연계
-- 음자리표 위치: 정답 시 **그 음 재생** → 시각(위치)+청각 연결.
+- 음자리표 위치: 정답 시 **상승 차임(`playCorrect`) 후 그 음 재생** → 성공 신호 + 시각(위치)+청각 연결. 오답 시 하강 버저(`playWrong`) 후 정답 음.
 - 계이름 매칭: 정답 시 해당 음 + "도=C" 각인. 전체 음계 `playSequence(['도4',…,'도5'])`.
 - 조표 순서: 오디오 비중 낮게. 오답은 `playWrong` 버저만.
 - "정답 들어보기"는 **채점과 분리**(들어도 감점 없음, KISS).
@@ -848,4 +857,4 @@ export function saveProgress(stageId, { bestStars, bestScore, accuracy }) {
 - 샤프 순서 **F C G D A E B** / 플랫 순서 **B E A D G C F** (서로 정확히 역순, 인접 완전5도)
 - 주파수 `f = 440·2^((n-69)/12)`, A4=440Hz, C4≈261.63Hz, C5≈523.25Hz
 
-*(문서 끝 — v0.2, 작성일: YYYY-MM-DD)*
+*(문서 끝 — v0.3, 작성일: YYYY-MM-DD)*

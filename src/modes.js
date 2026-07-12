@@ -40,7 +40,8 @@ const clefPosition = {
   name: 'clefPosition',
   generate() {
     const st = getState();
-    const clef = st.difficulty === 'easy' ? CLEFS.treble : pick([CLEFS.treble, CLEFS.bass]);
+    // 음자리표는 홈에서 선택한 state.clef를 따른다 (난이도와 분리)
+    const clef = st.clef === 'both' ? pick([CLEFS.treble, CLEFS.bass]) : st.clef === 'bass' ? CLEFS.bass : CLEFS.treble;
     const note = pick(staffNotes(clef));
     const distract = shuffle(LETTERS.filter((l) => l !== note.english)).slice(0, 3);
     const choices = shuffle([note.english, ...distract]);

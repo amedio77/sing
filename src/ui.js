@@ -4,7 +4,7 @@ import { getState, setState, startQuiz } from './game.js';
 import { MODES } from './modes.js';
 import { t } from './i18n.js';
 import { createStaffSVG } from './staff.js';
-import { playWrong, toggleMute, setMuted, setVolume } from './audio.js';
+import { playCorrect, playWrong, toggleMute, setMuted, setVolume } from './audio.js';
 
 // ── DOM 헬퍼 ─────────────────────────────────────────
 function h(tag, attrs = {}, ...kids) {
@@ -126,6 +126,22 @@ export function renderMenu(state) {
     h(
       'div',
       { class: 'ctrl-row' },
+      h('span', { class: 'ctrl-label' }, t('clef')),
+      segmented(
+        [
+          { value: 'treble', label: t('treble') },
+          { value: 'bass', label: t('bass') },
+          { value: 'both', label: t('both') },
+        ],
+        state.clef,
+        (v) => setState({ clef: v }),
+        t('clef')
+      )
+    ),
+    h('p', { class: 'ctrl-note' }, t('clefAppliesToModeA')),
+    h(
+      'div',
+      { class: 'ctrl-row' },
       h('span', { class: 'ctrl-label' }, t('difficulty')),
       segmented(
         [
@@ -241,13 +257,14 @@ function onChoose(mode, key, gridEl, feedbackEl, hintBox, q) {
   if (res.ok) {
     feedbackEl.textContent = '✓ ' + t('correct');
     feedbackEl.className = 'feedback ok';
-    q.playAudio();
+    playCorrect(); // 구별되는 상승 차임(성공 효과음)
+    setTimeout(() => q.playAudio(), 300); // 그 뒤 실제 음(학습)
   } else {
     feedbackEl.textContent = `✗ ${t('wrong')} — ${q.labelFor(res.correct)}`;
     feedbackEl.className = 'feedback bad';
     hintBox.open = true;
-    playWrong();
-    setTimeout(() => q.playAudio(), 450); // 정답 음 각인
+    playWrong(); // 구별되는 하강 버저(실패 효과음)
+    setTimeout(() => q.playAudio(), 500); // 그 뒤 정답 음 각인
   }
 
   setTimeout(

@@ -8,6 +8,7 @@ export const state = {
   volume: 0.3,
   total: 10, // 한 스테이지 문항 수 (5 | 10)
   difficulty: 'easy', // 'easy' | 'normal'
+  clef: 'treble', // 모드 A 음자리표: 'treble' | 'bass' | 'both' (홈에서 선택)
   activeModeId: null, // 현재 진행 중인 모드 id
   quiz: null, // 활성 퀴즈 세션 (createQuiz 결과)
 };
