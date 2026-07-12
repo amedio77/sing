@@ -26,6 +26,11 @@ const DICT = {
     bass: '낮은음',
     both: '둘 다',
     clefAppliesToModeA: '※ 음자리표는 「음자리표 위치」 모드에 적용돼요',
+    // 모드 D: 피아노 코드
+    chord: '피아노 코드',
+    chordDesc: '화음 ↔ 구성음',
+    askChordName: '이 화음의 코드는?',
+    askChordNotes: '이 코드의 구성음은?',
     // 앱바
     home: '홈',
     back: '뒤로',
@@ -75,6 +80,10 @@ const DICT = {
     bass: 'Bass',
     both: 'Both',
     clefAppliesToModeA: '※ Clef applies to the "Clef Position" mode',
+    chord: 'Chords',
+    chordDesc: 'Chord ↔ notes',
+    askChordName: 'Name this chord',
+    askChordNotes: 'Pick the notes',
     home: 'Home',
     back: 'Back',
     settings: 'Settings',

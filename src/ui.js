@@ -99,7 +99,7 @@ function appBar(state, { backAction, progress } = {}) {
 export function renderMenu(state) {
   window.onkeydown = null;
   const cards = MODES.map((mode) => {
-    const icon = { 'clef-position': '𝄞 𝄢', 'note-matching': '도 = C', 'key-order': '♯ ♭' }[mode.id];
+    const icon = { 'clef-position': '𝄞 𝄢', 'note-matching': '도 = C', 'key-order': '♯ ♭', chord: '🎹' }[mode.id];
     return h(
       'div',
       { class: 'mode-card', 'data-mode': mode.id },
@@ -225,7 +225,7 @@ export function renderMode(state, mode) {
 
   app().replaceChildren(
     appBar(state, { backAction: goHome, progress: { i: quiz.index, total: quiz.total } }),
-    h('main', { class: 'stage' }, h('p', { class: 'prompt' }, q.prompt()), visual, listen, choices, feedback, hintBox)
+    h('main', { class: 'stage' + (q.kind === 'chord' ? ' stage-chords' : '') }, h('p', { class: 'prompt' }, q.prompt()), visual, listen, choices, feedback, hintBox)
   );
 
   // 키보드: 1~N 보기 선택 / H 힌트 / L 듣기
@@ -304,6 +304,10 @@ export function renderResult(state) {
           createStaffSVG(q.review.clef, q.review.note, { highlight: true }),
           h('div', { class: 'review-cap' }, q.labelFor(q.answer))
         )
+      );
+    } else if (q.review && q.review.symbol && q.review.notes) {
+      review.appendChild(
+        h('div', { class: 'review-item text' }, h('div', { class: 'review-cap' }, `${q.review.symbol} = ${q.review.notes}`))
       );
     } else {
       const from = q.review && q.review.srcLabel ? q.review.srcLabel + ' → ' : '';

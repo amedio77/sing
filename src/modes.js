@@ -6,10 +6,11 @@
 import { CLEFS } from '../data/clefs.js';
 import { makeNote, LETTERS, SOLFEGE } from '../data/notes.js';
 import { SHARP_ORDER, FLAT_ORDER } from '../data/keys.js';
+import { makeChord } from '../data/chords.js';
 import { createStaffSVG } from './staff.js';
-import { playNote } from './audio.js';
+import { playNote, playChord } from './audio.js';
 import { getState } from './game.js';
-import { t, letterLabel } from './i18n.js';
+import { t, letterLabel, noteLabel } from './i18n.js';
 
 // ── 유틸 ──────────────────────────────────────────────
 const rnd = (n) => Math.floor(Math.random() * n);
@@ -153,4 +154,61 @@ const keyOrder = {
   },
 };
 
-export const MODES = [clefPosition, noteMatching, keyOrder];
+// ── 모드 D: 피아노 코드 (화음) ─────────────────────────
+const TRIADS = ['maj', 'min', 'aug', 'dim'];
+const SEVENTHS = ['dom7', 'maj7', 'min7'];
+
+// 겹임시표(Baug 등) 제외하고 유효 코드 하나 뽑기
+function pickChord(qualities) {
+  let c;
+  let guard = 0;
+  do {
+    c = makeChord(pick(LETTERS), pick(qualities));
+  } while (c.hasDoubleAccidental && guard++ < 40);
+  return c;
+}
+
+const chord = {
+  id: 'chord',
+  name: 'chord',
+  generate() {
+    const st = getState();
+    const qualities = st.difficulty === 'easy' ? TRIADS : [...TRIADS, ...SEVENTHS];
+    const target = pickChord(qualities);
+    const dir = pick(['notes2name', 'name2notes']); // 둘 다(방향 랜덤)
+
+    // 오답 코드 3개 (겹임시표 제외, id 중복 없음)
+    const seen = new Set([target.id]);
+    const distractors = [];
+    let g = 0;
+    while (distractors.length < 3 && g++ < 100) {
+      const c = pickChord(qualities);
+      if (seen.has(c.id)) continue;
+      seen.add(c.id);
+      distractors.push(c);
+    }
+    const options = shuffle([target, ...distractors]);
+    const byId = Object.fromEntries(options.map((c) => [c.id, c]));
+    const notesLabel = (c) => c.tones.map((tn) => noteLabel(tn)).join(' · ');
+    const choices = options.map((c) => c.id);
+
+    return {
+      kind: 'chord',
+      prompt: () => (dir === 'notes2name' ? t('askChordName') : t('askChordNotes')),
+      render: (el) => {
+        const card = document.createElement('div');
+        card.className = 'chord-card ' + (dir === 'notes2name' ? 'notes' : 'name');
+        card.textContent = dir === 'notes2name' ? notesLabel(target) : target.symbol;
+        el.appendChild(card);
+      },
+      choices,
+      answer: target.id,
+      labelFor: (id) => (dir === 'notes2name' ? byId[id].symbol : notesLabel(byId[id])),
+      playAudio: () => playChord(target.tones.map((tn) => tn.pitch)),
+      hint: `${target.symbol} (${target.ko}) = ${target.hint}`,
+      review: { kind: 'chord', symbol: target.symbol, notes: notesLabel(target) },
+    };
+  },
+};
+
+export const MODES = [clefPosition, noteMatching, keyOrder, chord];

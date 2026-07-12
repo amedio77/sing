@@ -313,6 +313,33 @@ svg.staff {
   box-shadow: var(--shadow);
 }
 
+/* 모드 D: 코드 카드 */
+.chord-card {
+  font-weight: 800;
+  color: var(--brand);
+  background: var(--surface);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  min-width: 120px;
+  padding: 16px 26px;
+  text-align: center;
+  box-shadow: var(--shadow);
+  line-height: 1.25;
+}
+.chord-card.name {
+  font-size: 54px;
+} /* 코드 심볼(예: Cm7) */
+.chord-card.notes {
+  font-size: 28px;
+} /* 구성음 이름(도·미·솔) */
+.stage-chords .choice {
+  font-size: 17px;
+}
+.stage-chords .choice-label {
+  text-align: center;
+  line-height: 1.25;
+}
+
 /* 모드 C: 조표 칩 */
 .chip-row {
   display: flex;
