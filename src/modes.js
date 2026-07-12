@@ -30,9 +30,17 @@ function ordinalEn(n) {
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
-// 오선 위 자연음 풀 (줄 + 칸)
-function staffNotes(clef) {
-  return [...clef.lines, ...clef.spaces].map(([l, o]) => makeNote(l, o));
+// diatonic 값 → makeNote (덧줄 음 포함 풀 생성용)
+function noteFromDv(dv) {
+  return makeNote(LETTERS[((dv % 7) + 7) % 7], Math.floor(dv / 7));
+}
+// 음자리표 음 풀: 쉬움=오선 안(dvRef..+8), 보통=덧줄 포함(dvRef−3..+10)
+function notePool(clef, difficulty) {
+  const lo = difficulty === 'easy' ? clef.dvRef : clef.dvRef - 3;
+  const hi = clef.dvRef + (difficulty === 'easy' ? 8 : 10);
+  const pool = [];
+  for (let dv = lo; dv <= hi; dv++) pool.push(noteFromDv(dv));
+  return pool;
 }
 
 // ── 모드 A: 음자리표 음 위치 ──────────────────────────
@@ -43,7 +51,7 @@ const clefPosition = {
     const st = getState();
     // 음자리표는 홈에서 선택한 state.clef를 따른다 (난이도와 분리)
     const clef = st.clef === 'both' ? pick([CLEFS.treble, CLEFS.bass]) : st.clef === 'bass' ? CLEFS.bass : CLEFS.treble;
-    const note = pick(staffNotes(clef));
+    const note = pick(notePool(clef, st.difficulty)); // 덧줄 포함 확장 풀
     const distract = shuffle(LETTERS.filter((l) => l !== note.english)).slice(0, 3);
     const choices = shuffle([note.english, ...distract]);
     return {
@@ -67,10 +75,11 @@ const noteMatching = {
   generate() {
     const st = getState();
     const letter = pick(LETTERS);
+    const oct = pick([4, 5]); // 오선 위치 다양화
     const dir = st.difficulty === 'easy' ? 'ko2en' : pick(['ko2en', 'en2ko']);
     const targetIsEn = dir === 'ko2en';
     const srcLabel = targetIsEn ? SOLFEGE[letter] : letter; // 병기할 출처 라벨
-    const note = makeNote(letter, 4); // 오선 표시용 (자연음)
+    const note = makeNote(letter, oct); // 오선 표시용 (자연음, 옥타브 랜덤)
     const distract = shuffle(LETTERS.filter((l) => l !== letter)).slice(0, 3);
     const choices = shuffle([letter, ...distract]);
     return {
@@ -89,7 +98,7 @@ const noteMatching = {
       choices,
       answer: letter,
       labelFor: (k) => (targetIsEn ? k : SOLFEGE[k]), // 목표 체계 라벨(매칭 학습)
-      playAudio: () => playNote(letter + '4'),
+      playAudio: () => playNote(letter + oct),
       hint: '도=C 레=D 미=E 파=F 솔=G 라=A 시=B',
       review: { srcLabel, answerLabel: targetIsEn ? letter : SOLFEGE[letter] },
     };
@@ -102,7 +111,7 @@ const keyOrder = {
   name: 'keyOrder',
   generate() {
     const st = getState();
-    const useSharp = st.difficulty === 'easy' ? true : Math.random() < 0.5;
+    const useSharp = Math.random() < 0.5; // 쉬움/보통 모두 샤프·플랫 혼합
     const order = useSharp ? SHARP_ORDER : FLAT_ORDER;
     const sign = useSharp ? '#' : 'b';
     const signCh = SIGN_CHAR[sign];
@@ -123,8 +132,10 @@ const keyOrder = {
           const word = useSharp ? t('sharp') : t('flat');
           return lang === 'ko' ? `${word} ${idx + 1}번째는?` : `${ordinalEn(idx + 1)} ${useSharp ? 'sharp' : 'flat'}?`;
         }
-        if (idx === 0) return lang === 'ko' ? '처음 붙는 것은?' : 'Which comes first?';
-        return t('askNextAccidental');
+        const word = useSharp ? t('sharp') : t('flat');
+        return lang === 'ko'
+          ? `${idx === 0 ? '처음' : '다음에'} 붙는 ${word}는?`
+          : `Which ${useSharp ? 'sharp' : 'flat'} comes ${idx === 0 ? 'first' : 'next'}?`;
       },
       render: (c) => {
         if (type === 'next') {
