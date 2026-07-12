@@ -7,7 +7,7 @@ import { CLEFS } from '../data/clefs.js';
 import { makeNote, LETTERS, SOLFEGE } from '../data/notes.js';
 import { SHARP_ORDER, FLAT_ORDER } from '../data/keys.js';
 import { makeChord } from '../data/chords.js';
-import { createStaffSVG } from './staff.js';
+import { createStaffSVG, createChordSVG, createKeySigSVG } from './staff.js';
 import { playNote, playChord } from './audio.js';
 import { getState } from './game.js';
 import { t, letterLabel, noteLabel } from './i18n.js';
@@ -69,18 +69,22 @@ const noteMatching = {
     const letter = pick(LETTERS);
     const dir = st.difficulty === 'easy' ? 'ko2en' : pick(['ko2en', 'en2ko']);
     const targetIsEn = dir === 'ko2en';
-    const srcLabel = targetIsEn ? SOLFEGE[letter] : letter; // 크게 보여줄 것
+    const srcLabel = targetIsEn ? SOLFEGE[letter] : letter; // 병기할 출처 라벨
+    const note = makeNote(letter, 4); // 오선 표시용 (자연음)
     const distract = shuffle(LETTERS.filter((l) => l !== letter)).slice(0, 3);
     const choices = shuffle([letter, ...distract]);
     return {
       kind: 'match',
       prompt: () => t('askMatchTo'),
       render: (c) => {
-        const card = document.createElement('div');
-        card.className = 'match-card';
-        card.textContent = srcLabel;
-        card.setAttribute('aria-label', srcLabel);
-        c.appendChild(card);
+        const wrap = document.createElement('div');
+        wrap.className = 'match-staff';
+        wrap.appendChild(createStaffSVG(CLEFS.treble, note)); // 높은음자리표에 음 표시
+        const sub = document.createElement('div');
+        sub.className = 'match-sub';
+        sub.textContent = srcLabel; // 출처 체계 라벨 병기
+        wrap.appendChild(sub);
+        c.appendChild(wrap);
       },
       choices,
       answer: letter,
@@ -123,26 +127,15 @@ const keyOrder = {
         return t('askNextAccidental');
       },
       render: (c) => {
-        const row = document.createElement('div');
-        row.className = 'chip-row';
         if (type === 'next') {
-          shown.forEach((l) => {
-            const chip = document.createElement('div');
-            chip.className = 'chip chip-shown';
-            chip.textContent = l + signCh;
-            row.appendChild(chip);
-          });
-          const q = document.createElement('div');
-          q.className = 'chip chip-q';
-          q.textContent = '?';
-          row.appendChild(q);
+          // 지금까지 붙은 조표를 실제 조표 위치로 오선에 표시(+다음 자리 '?')
+          c.appendChild(createKeySigSVG(sign, idx, CLEFS.treble, { showNext: true }));
         } else {
           const badge = document.createElement('div');
           badge.className = 'sign-badge';
           badge.textContent = signCh;
-          row.appendChild(badge);
+          c.appendChild(badge);
         }
-        c.appendChild(row);
       },
       choices,
       answer,
@@ -196,10 +189,14 @@ const chord = {
       kind: 'chord',
       prompt: () => (dir === 'notes2name' ? t('askChordName') : t('askChordNotes')),
       render: (el) => {
-        const card = document.createElement('div');
-        card.className = 'chord-card ' + (dir === 'notes2name' ? 'notes' : 'name');
-        card.textContent = dir === 'notes2name' ? notesLabel(target) : target.symbol;
-        el.appendChild(card);
+        if (dir === 'notes2name') {
+          el.appendChild(createChordSVG(target.tones, CLEFS.treble)); // 화음을 오선에 쌓아 표시
+        } else {
+          const card = document.createElement('div');
+          card.className = 'chord-card name';
+          card.textContent = target.symbol; // 코드 심볼
+          el.appendChild(card);
+        }
       },
       choices,
       answer: target.id,

@@ -313,6 +313,20 @@ svg.staff {
   box-shadow: var(--shadow);
 }
 
+/* 모드 B: 오선 + 계이름 라벨 병기 */
+.match-staff {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.match-sub {
+  font-size: 40px;
+  font-weight: 800;
+  color: var(--brand);
+}
+
 /* 모드 D: 코드 카드 */
 .chord-card {
   font-weight: 800;

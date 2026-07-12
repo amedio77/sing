@@ -37,6 +37,7 @@ export function makeChord(rootLetter, quality) {
       letter,
       acc,
       octave: oct,
+      diatonic: oct * 7 + LETTER_STEP[letter], // 오선 위치(y) 계산용
       midi: (oct + 1) * 12 + SEMITONE[letter] + acc, // C4=60
       solfege: SOLFEGE[letter] + accStr(acc),
       english: letter + accStr(acc),
