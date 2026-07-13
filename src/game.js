@@ -27,9 +27,25 @@ export function setState(patch) {
 }
 
 // 모든 모드가 공유하는 퀴즈 엔진. 모드는 문제 생성 함수(generate)만 제공.
-// question 규약: { prompt():str, render(el), choices:[key], answer:key,
+// question 규약: { key:str(문제 정체성), prompt():str, render(el), choices:[key], answer:key,
 //                  labelFor(key):str, playAudio(), hint:str, review?:obj }
 export function createQuiz({ generate, total = 10 }) {
+  // 세션 내 무중복 출제(확률적 회피): key 기준 used-set 재시도 →
+  // 풀 < 문항 수로 고갈되면 직전 문항과의 연속 중복만 회피 → 최종 수용(무한루프 차단).
+  // key 없는 question은 dedup을 건너뛴다. generate는 순수 객체 생성이라 재시도 비용 미미.
+  const MAX_RETRY = 20;
+  const used = new Set();
+  const questions = [];
+  for (let i = 0; i < total; i++) {
+    let q = generate();
+    for (let r = 0; r < MAX_RETRY && q.key && used.has(q.key); r++) q = generate();
+    if (q.key && used.has(q.key)) {
+      const prevKey = questions[i - 1] && questions[i - 1].key;
+      for (let r = 0; r < MAX_RETRY && q.key === prevKey; r++) q = generate();
+    }
+    if (q.key) used.add(q.key);
+    questions.push(q);
+  }
   return {
     total,
     index: 0,
@@ -38,7 +54,7 @@ export function createQuiz({ generate, total = 10 }) {
     maxCombo: 0,
     firstTryCorrect: 0, // 정확도 산출용
     wrongLog: [], // 오답 리뷰용
-    questions: Array.from({ length: total }, generate), // 미리 total개 생성
+    questions,
     current() {
       return this.questions[this.index];
     },

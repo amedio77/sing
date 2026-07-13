@@ -1,7 +1,9 @@
-// src/modes.js — 3개 학습 모드 = 평범한 배열. 레지스트리·전략 패턴 없음.
+// src/modes.js — 4개 학습 모드 = 평범한 배열. 레지스트리·전략 패턴 없음.
 // 모드 규약: { id, name(key), generate() → question }
-// question: { prompt():str, render(el), choices:[key], answer:key,
+// question: { key:str, prompt():str, render(el), choices:[key], answer:key,
 //             labelFor(key):str, playAudio(), hint:str, kind, review }
+// key = 문제 정체성(그 모드가 평가하는 학습 항목이 같으면 같은 key).
+//       createQuiz(game.js)가 세션 내 무중복 판정에 사용. 누락 시 해당 문항만 dedup 제외.
 
 import { CLEFS } from '../data/clefs.js';
 import { makeNote, LETTERS, SOLFEGE } from '../data/notes.js';
@@ -56,12 +58,13 @@ const clefPosition = {
     const choices = shuffle([note.english, ...distract]);
     return {
       kind: 'staff',
+      key: `${clef.id}:${note.english}${note.octave}`, // 위치 읽기가 학습 항목 → 옥타브 포함
       prompt: () => `${getState().lang === 'ko' ? clef.nameKo : clef.nameEn} · ${t('askNoteName')}`,
       render: (c) => c.appendChild(createStaffSVG(clef, note)),
       choices,
       answer: note.english,
       labelFor: (k) => letterLabel(k),
-      playAudio: () => playNote(note.midi),
+      playAudio: () => playNote(note.letter + note.octave), // 문자열 피치 필수 — 숫자는 Hz로 해석됨(audio.js noteToFreq)
       hint: `${clef.mnemonicLinesKo} (${clef.mnemonicLinesEn}) · ${clef.mnemonicSpacesKo} (${clef.mnemonicSpacesEn})`,
       review: { clef, note },
     };
@@ -84,6 +87,7 @@ const noteMatching = {
     const choices = shuffle([letter, ...distract]);
     return {
       kind: 'match',
+      key: `${dir}:${letter}`, // 글자 매칭이 학습 항목 → 옥타브(표시용 변화)는 제외
       prompt: () => t('askMatchTo'),
       render: (c) => {
         const wrap = document.createElement('div');
@@ -126,6 +130,7 @@ const keyOrder = {
 
     return {
       kind: 'chips',
+      key: `${sign}:${idx}`, // next/nth는 같은 사실(order[idx])의 문구 변형 → type 제외로 세션당 1회
       prompt: () => {
         const lang = getState().lang;
         if (type === 'nth') {
@@ -198,6 +203,7 @@ const chord = {
 
     return {
       kind: 'chord',
+      key: `${dir}:${target.id}`,
       prompt: () => (dir === 'notes2name' ? t('askChordName') : t('askChordNotes')),
       render: (el) => {
         if (dir === 'notes2name') {
