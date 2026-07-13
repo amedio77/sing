@@ -342,6 +342,7 @@ function learnKeyOrder(state, main) {
 function learnChord(state, main) {
   let root = 'C';
   let quality = 'maj';
+  let allOpen = false; // 전체 코드 details 펼침 상태 — 칩 클릭 재렌더 후에도 유지
   const QUALS = ['maj', 'min', 'aug', 'dim', 'dom7', 'maj7', 'min7'];
   const QUAL_LABEL = { maj: 'maj', min: 'm', aug: 'aug', dim: 'dim', dom7: '7', maj7: 'maj7', min7: 'm7' };
   const sec = h('div', { class: 'learn-sec' });
@@ -409,29 +410,33 @@ function learnChord(state, main) {
         h('p', { class: 'stack-hint' }, (lang() === 'ko' ? c.hint : c.hintEn) + ' — ' + t('stackDesc'))
       ),
       h('div', { class: 'learn-row' }, stackBtn, togetherBtn, cmpBtn),
-      // 전체 코드 한눈에 — 성질별 7행 × 루트 7. 칩 클릭 = 위 탐색기에 로드 + 소리 (전수 커버리지)
+      // 전체 코드 한눈에 — 접이식(기본 접힘, 페이지 길이 억제). 칩 클릭 = 위 탐색기에 로드 + 소리
       h(
-        'div',
-        { class: 'learn-card' },
-        h('div', { class: 'learn-card-title' }, '🗂 ' + t('allChords')),
-        QUALS.map((q) =>
-          h(
-            'div',
-            { class: 'chord-grid-row' },
-            h('span', { class: 'learn-seg-label' }, QUAL_LABEL[q]),
-            LETTERS.map((l) =>
-              h(
-                'button',
-                {
-                  class: 'chip chord-chip' + (l === root && q === quality ? ' active' : ''),
-                  onclick: () => {
-                    root = l;
-                    quality = q;
-                    render();
-                    playChord(makeChord(l, q).tones.map((tn) => tn.pitch));
+        'details',
+        { class: 'hint', open: allOpen, ontoggle: (e) => (allOpen = e.target.open) },
+        h('summary', {}, '🗂 ' + t('allChords')),
+        h(
+          'div',
+          { class: 'hint-body' },
+          QUALS.map((q) =>
+            h(
+              'div',
+              { class: 'chord-grid-row' },
+              h('span', { class: 'learn-seg-label' }, QUAL_LABEL[q]),
+              LETTERS.map((l) =>
+                h(
+                  'button',
+                  {
+                    class: 'chip chord-chip' + (l === root && q === quality ? ' active' : ''),
+                    onclick: () => {
+                      root = l;
+                      quality = q;
+                      render();
+                      playChord(makeChord(l, q).tones.map((tn) => tn.pitch));
+                    },
                   },
-                },
-                l + CHORD_QUALITIES[q].suffix
+                  l + CHORD_QUALITIES[q].suffix
+                )
               )
             )
           )

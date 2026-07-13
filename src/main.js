@@ -43,4 +43,9 @@ function armAudio() {
 window.addEventListener('pointerdown', armAudio);
 window.addEventListener('keydown', armAudio);
 
+// PWA: 서비스워커 등록 (sw.js — 네트워크 우선이라 온라인이면 항상 최신 코드)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+}
+
 handle(); // 초기 진입
