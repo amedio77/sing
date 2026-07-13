@@ -76,10 +76,9 @@ const noteMatching = {
   id: 'note-matching',
   name: 'noteMatching',
   generate() {
-    const st = getState();
     const letter = pick(LETTERS);
     const oct = pick([4, 5]); // 오선 위치 다양화
-    const dir = st.difficulty === 'easy' ? 'ko2en' : pick(['ko2en', 'en2ko']);
+    const dir = pick(['ko2en', 'en2ko']); // 쉬움도 양방향 — 실질 풀 7→14로 세션 내 무중복 성립 (labelFor가 양방향 지원)
     const targetIsEn = dir === 'ko2en';
     const srcLabel = targetIsEn ? SOLFEGE[letter] : letter; // 병기할 출처 라벨
     const note = makeNote(letter, oct); // 오선 표시용 (자연음, 옥타브 랜덤)
