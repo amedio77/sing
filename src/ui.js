@@ -156,37 +156,41 @@ export function renderMenu(state) {
     );
   });
 
-  // 플레이 옵션(난이도·문항수) = 다음 세션 구성. 전역 설정(언어·표기·사운드)은 ⚙ 설정 페이지로 일원화.
+  // 플레이 옵션(난이도·문항수) = 다음 세션 구성, 한 줄 배치. 전역 설정(언어·표기·사운드)은 ⚙ 설정 페이지로 일원화.
   const controls = h(
     'div',
     { class: 'menu-controls' },
-    h('h2', { class: 'ctrl-title' }, t('playOptions')),
     h(
       'div',
-      { class: 'ctrl-row' },
-      h('span', { class: 'ctrl-label' }, t('difficulty')),
-      segmented(
-        [
-          { value: 'easy', label: t('easy') },
-          { value: 'normal', label: t('normal') },
-        ],
-        state.difficulty,
-        (v) => setState({ difficulty: v }),
-        t('difficulty')
-      )
-    ),
-    h(
-      'div',
-      { class: 'ctrl-row' },
-      h('span', { class: 'ctrl-label' }, t('questions')),
-      segmented(
-        [
-          { value: 5, label: '5' },
-          { value: 10, label: '10' },
-        ],
-        state.total,
-        (v) => setState({ total: v }),
-        t('questions')
+      { class: 'ctrl-line' },
+      h('h2', { class: 'ctrl-title' }, t('playOptions')),
+      h(
+        'div',
+        { class: 'ctrl-row' },
+        h('span', { class: 'ctrl-label' }, t('difficulty')),
+        segmented(
+          [
+            { value: 'easy', label: t('easy') },
+            { value: 'normal', label: t('normal') },
+          ],
+          state.difficulty,
+          (v) => setState({ difficulty: v }),
+          t('difficulty')
+        )
+      ),
+      h(
+        'div',
+        { class: 'ctrl-row' },
+        h('span', { class: 'ctrl-label' }, t('questions')),
+        segmented(
+          [
+            { value: 5, label: '5' },
+            { value: 10, label: '10' },
+          ],
+          state.total,
+          (v) => setState({ total: v }),
+          t('questions')
+        )
       )
     )
   );

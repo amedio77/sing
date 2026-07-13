@@ -259,6 +259,17 @@ button {
   margin: 0;
   text-transform: uppercase;
 }
+/* 플레이 옵션 한 줄 배치 (좁은 화면에선 자동 줄바꿈) */
+.ctrl-line {
+  display: flex;
+  align-items: center;
+  gap: 10px 22px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.ctrl-line .ctrl-label {
+  min-width: auto;
+}
 /* 모드 카드 내 옵션(모드 A 음자리표) — 카드 폭에 맞춰 3버튼 균등 분할 */
 .card-opt {
   width: 100%;
