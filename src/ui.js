@@ -5,6 +5,7 @@ import { MODES } from './modes.js';
 import { t } from './i18n.js';
 import { createStaffSVG } from './staff.js';
 import { playCorrect, playWrong, toggleMute, setMuted, setVolume } from './audio.js';
+import { saveSettings } from './storage.js';
 
 // ── DOM 헬퍼 ─────────────────────────────────────────
 function h(tag, attrs = {}, ...kids) {
@@ -32,13 +33,6 @@ function goHome() {
   st.activeModeId = null;
   location.hash = '#/menu';
 }
-function toggleSound() {
-  const muted = toggleMute();
-  setState({ audioEnabled: !muted });
-}
-function toggleLang() {
-  setState({ lang: getState().lang === 'ko' ? 'en' : 'ko' });
-}
 
 function segmented(options, current, onPick, aria) {
   return h(
@@ -58,22 +52,39 @@ function segmented(options, current, onPick, aria) {
   );
 }
 
-function appBar(state, { backAction, progress } = {}) {
+function appBar(state, { backAction, progress, noSettings } = {}) {
+  // 사운드 quick toggle: setState 없이 직접 갱신 — 피드백 대기 중 재렌더 점프(B1) 방지
   const soundBtn = h(
     'button',
-    { class: 'iconbtn', 'aria-label': t('sound'), title: t('sound'), onclick: toggleSound },
+    {
+      class: 'iconbtn',
+      'aria-label': t('sound'),
+      title: t('sound'),
+      onclick: () => {
+        const muted = toggleMute();
+        getState().audioEnabled = !muted;
+        saveSettings(getState());
+        soundBtn.textContent = muted ? '🔇' : '🔊';
+      },
+    },
     state.audioEnabled ? '🔊' : '🔇'
   );
-  const langBtn = h(
-    'button',
-    { class: 'iconbtn lang', 'aria-label': t('language'), onclick: toggleLang },
-    state.lang === 'ko' ? '한 · EN' : 'KO · EN'
-  );
-  const setBtn = h(
-    'button',
-    { class: 'iconbtn', 'aria-label': t('settings'), title: t('settings'), onclick: () => (location.hash = '#/settings') },
-    '⚙'
-  );
+  // 설정 진입: 복귀 목적지(settingsReturn) 기록. 설정 화면 자신은 ⚙ 숨김.
+  const setBtn = noSettings
+    ? null
+    : h(
+        'button',
+        {
+          class: 'iconbtn',
+          'aria-label': t('settings'),
+          title: t('settings'),
+          onclick: () => {
+            getState().settingsReturn = getState().route;
+            location.hash = '#/settings';
+          },
+        },
+        '⚙'
+      );
 
   const left = backAction
     ? h('button', { class: 'iconbtn back', onclick: backAction }, '← ' + t('home'))
@@ -92,7 +103,7 @@ function appBar(state, { backAction, progress } = {}) {
       )
     : h('span', { class: 'progress' });
 
-  return h('header', { class: 'appbar' }, left, mid, h('div', { class: 'appbar-right' }, soundBtn, langBtn, setBtn));
+  return h('header', { class: 'appbar' }, left, mid, h('div', { class: 'appbar-right' }, soundBtn, setBtn));
 }
 
 // ── 홈 (메뉴) ────────────────────────────────────────
@@ -100,12 +111,31 @@ export function renderMenu(state) {
   window.onkeydown = null;
   const cards = MODES.map((mode) => {
     const icon = { 'clef-position': '𝄞 𝄢', 'note-matching': '도 = C', 'key-order': '♯ ♭', chord: '🎹' }[mode.id];
+    // 음자리표는 모드 A 한정 옵션 → 카드 안에 배치 (적용 범위가 배치로 자명)
+    const clefSeg =
+      mode.id === 'clef-position'
+        ? h(
+            'div',
+            { class: 'card-opt' },
+            segmented(
+              [
+                { value: 'treble', label: t('treble') },
+                { value: 'bass', label: t('bass') },
+                { value: 'both', label: t('both') },
+              ],
+              state.clef,
+              (v) => setState({ clef: v }),
+              t('clef')
+            )
+          )
+        : null;
     return h(
       'div',
       { class: 'mode-card', 'data-mode': mode.id },
       h('div', { class: 'mode-icon' }, icon),
       h('h2', { class: 'mode-name' }, t(mode.name)),
       h('p', { class: 'mode-desc' }, t(mode.name + 'Desc')),
+      clefSeg,
       h(
         'button',
         {
@@ -120,25 +150,11 @@ export function renderMenu(state) {
     );
   });
 
+  // 플레이 옵션(난이도·문항수) = 다음 세션 구성. 전역 설정(언어·표기·사운드)은 ⚙ 설정 페이지로 일원화.
   const controls = h(
     'div',
     { class: 'menu-controls' },
-    h(
-      'div',
-      { class: 'ctrl-row' },
-      h('span', { class: 'ctrl-label' }, t('clef')),
-      segmented(
-        [
-          { value: 'treble', label: t('treble') },
-          { value: 'bass', label: t('bass') },
-          { value: 'both', label: t('both') },
-        ],
-        state.clef,
-        (v) => setState({ clef: v }),
-        t('clef')
-      )
-    ),
-    h('p', { class: 'ctrl-note' }, t('clefAppliesToModeA')),
+    h('h2', { class: 'ctrl-title' }, t('playOptions')),
     h(
       'div',
       { class: 'ctrl-row' },
@@ -246,6 +262,8 @@ function onChoose(mode, key, gridEl, feedbackEl, hintBox, q) {
   if (quiz._locked) return;
   quiz._locked = true;
   const res = quiz.submit(key);
+  // 피드백 대기 중 화면 이탈(⚙·홈) 시 지연 동작(정답음·라우팅·재렌더) 억제 — B2
+  const stillHere = () => getState().route === '#/mode/' + mode.id;
 
   for (const b of gridEl.children) {
     b.disabled = true;
@@ -258,18 +276,19 @@ function onChoose(mode, key, gridEl, feedbackEl, hintBox, q) {
     feedbackEl.textContent = '✓ ' + t('correct');
     feedbackEl.className = 'feedback ok';
     playCorrect(); // 구별되는 상승 차임(성공 효과음)
-    setTimeout(() => q.playAudio(), 300); // 그 뒤 실제 음(학습)
+    setTimeout(() => stillHere() && q.playAudio(), 300); // 그 뒤 실제 음(학습)
   } else {
     feedbackEl.textContent = `✗ ${t('wrong')} — ${q.labelFor(res.correct)}`;
     feedbackEl.className = 'feedback bad';
     hintBox.open = true;
     playWrong(); // 구별되는 하강 버저(실패 효과음)
-    setTimeout(() => q.playAudio(), 500); // 그 뒤 정답 음 각인
+    setTimeout(() => stillHere() && q.playAudio(), 500); // 그 뒤 정답 음 각인
   }
 
   setTimeout(
     () => {
       quiz._locked = false;
+      if (!stillHere()) return;
       if (res.done) location.hash = '#/result';
       else setState({}); // 다음 문제 렌더
     },
@@ -370,10 +389,12 @@ export function renderSettings(state) {
       state.volume = v; // 재렌더 없이 라이브 반영(슬라이더 포커스 유지)
       volLabel.textContent = e.target.value + '%';
     },
+    onchange: () => saveSettings(getState()), // 드래그 종료 시 1회 저장 (oninput은 setState 우회)
   });
 
   app().replaceChildren(
-    appBar(state, { backAction: () => history.back() }),
+    // 명시적 복귀: ⚙ 진입 시 기록한 settingsReturn으로. 직접 진입·새로고침도 앱 내(#/menu) 보장.
+    appBar(state, { backAction: () => (location.hash = state.settingsReturn || '#/menu'), noSettings: true }),
     h(
       'main',
       { class: 'settings' },
@@ -390,6 +411,21 @@ export function renderSettings(state) {
           state.lang,
           (v) => setState({ lang: v }),
           t('language')
+        )
+      ),
+      h(
+        'div',
+        { class: 'set-row' },
+        h('span', { class: 'set-label' }, t('notation')),
+        segmented(
+          [
+            { value: 'solfege', label: t('notationSolfege') },
+            { value: 'english', label: t('notationEnglish') },
+            { value: 'both', label: t('notationBoth') },
+          ],
+          state.notation,
+          (v) => setState({ notation: v }),
+          t('notation')
         )
       ),
       h(

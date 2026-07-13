@@ -1,5 +1,7 @@
 // src/game.js — 단일 상태 객체 + 공통 퀴즈 엔진. 프레임워크·pub/sub 없음.
 
+import { saveSettings, PERSIST_KEYS } from './storage.js';
+
 export const state = {
   lang: 'ko', // UI 언어: 'ko' | 'en'
   notation: 'both', // 계이름 표기: 'solfege' | 'english' | 'both'
@@ -8,9 +10,11 @@ export const state = {
   volume: 0.3,
   total: 10, // 한 스테이지 문항 수 (5 | 10)
   difficulty: 'easy', // 'easy' | 'normal'
-  clef: 'treble', // 모드 A 음자리표: 'treble' | 'bass' | 'both' (홈에서 선택)
+  clef: 'treble', // 모드 A 음자리표: 'treble' | 'bass' | 'both' (모드 A 카드에서 선택)
   activeModeId: null, // 현재 진행 중인 모드 id
   quiz: null, // 활성 퀴즈 세션 (createQuiz 결과)
+  settingsReturn: '', // 설정(⚙) 진입 전 라우트 — 명시적 복귀용 (비영속)
+  learnSeen: {}, // 학습 페이지 방문 기록 { modeId: true } — sing-progress-v1에 영속
 };
 
 let rerender = () => {}; // main.js가 현재 뷰 render를 등록
@@ -23,6 +27,7 @@ export function getState() {
 
 export function setState(patch) {
   Object.assign(state, patch);
+  if (PERSIST_KEYS.some((k) => k in patch)) saveSettings(state); // 설정 키 변경 시 영속화
   rerender(state); // 상태 갱신 후 현재 뷰 1회 재렌더
 }
 

@@ -20,12 +20,17 @@ const DICT = {
     noteMatchingDesc: '도레미 ↔ ABC',
     keyOrder: '조표 순서',
     keyOrderDesc: '♯ · ♭ 붙는 순서',
-    // 음자리표 선택 (모드 A)
+    // 음자리표 선택 (모드 A 카드 내)
     clef: '음자리표',
     treble: '높은음',
     bass: '낮은음',
     both: '둘 다',
-    clefAppliesToModeA: '※ 음자리표는 「음자리표 위치」 모드에 적용돼요',
+    playOptions: '플레이 옵션',
+    // 계이름 표기 (설정)
+    notation: '계이름 표기',
+    notationSolfege: '도레미',
+    notationEnglish: 'CDE',
+    notationBoth: '도 · C',
     // 모드 D: 피아노 코드
     chord: '피아노 코드',
     chordDesc: '화음 ↔ 구성음',
@@ -59,7 +64,7 @@ const DICT = {
     score: '점수',
     combo: '콤보',
     ordinal: '', // 한국어는 "3번째" → 접미 방식으로 처리
-    settingsFootnote: '(진행 저장·별 해금은 후속 버전)',
+    settingsFootnote: '※ 설정은 이 기기에 자동 저장돼요',
   },
   en: {
     appTitle: 'Learn the Staff',
@@ -79,7 +84,11 @@ const DICT = {
     treble: 'Treble',
     bass: 'Bass',
     both: 'Both',
-    clefAppliesToModeA: '※ Clef applies to the "Clef Position" mode',
+    playOptions: 'Play options',
+    notation: 'Note names',
+    notationSolfege: 'Do Re Mi',
+    notationEnglish: 'C D E',
+    notationBoth: 'Do · C',
     chord: 'Chords',
     chordDesc: 'Chord ↔ notes',
     askChordName: 'Name this chord',
@@ -109,7 +118,7 @@ const DICT = {
     score: 'Score',
     combo: 'Combo',
     ordinal: '',
-    settingsFootnote: '(Progress save & unlocks: later version)',
+    settingsFootnote: '※ Settings are saved on this device',
   },
 };
 
