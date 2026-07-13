@@ -3,6 +3,7 @@
 import { state, bindView } from './game.js';
 import { MODES } from './modes.js';
 import { renderMenu, renderResult, renderSettings, renderMode } from './ui.js';
+import { renderLearn } from './learn.js';
 import { unlock, setVolume, setMuted } from './audio.js';
 import { loadSettings, loadProgress } from './storage.js';
 
@@ -17,6 +18,7 @@ const routes = {
   result: () => renderResult(state),
   settings: () => renderSettings(state),
   mode: (id) => renderMode(state, MODES.find((m) => m.id === id)),
+  learn: (id) => renderLearn(state, MODES.find((m) => m.id === id)),
 };
 
 function handle() {

@@ -4,17 +4,18 @@
 const SEMITONE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
 const SOLFEGE = { 도: 'C', 레: 'D', 미: 'E', 파: 'F', 솔: 'G', 라: 'A', 시: 'B' };
 
-// "C4" | "F#4" | "Gb3" | "솔4" | 주파수(number) 지원
+// "C4" | "F#4" | "Gb3" | "F##5"(겹임시표) | "솔4" | 주파수(number) 지원
+const ACC_SEMI = { '': 0, '#': 1, '##': 2, b: -1, bb: -2 };
 export function noteToFreq(note) {
   if (typeof note === 'number') return note;
-  let m = String(note).match(/^([A-Ga-g])([#b]?)(-?\d+)$/);
+  let m = String(note).match(/^([A-Ga-g])([#b]{0,2})(-?\d+)$/);
   if (!m) {
     const km = String(note).match(/^([도레미파솔라시])(-?\d+)$/);
     if (!km) throw new Error('bad note: ' + note); // fail-fast
     m = [null, SOLFEGE[km[1]], '', km[2]];
   }
   const [, letter, acc, octStr] = m;
-  const semis = SEMITONE[letter.toUpperCase()] + (acc === '#' ? 1 : acc === 'b' ? -1 : 0);
+  const semis = SEMITONE[letter.toUpperCase()] + (ACC_SEMI[acc] ?? 0);
   const midi = (parseInt(octStr, 10) + 1) * 12 + semis; // C4=60
   return 440 * Math.pow(2, (midi - 69) / 12); // A4=440
 }

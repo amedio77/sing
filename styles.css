@@ -618,6 +618,196 @@ svg.staff {
   margin-top: 12px;
 }
 
+/* ── 학습 페이지 ──────────────────────── */
+.learn {
+  padding: 16px 16px 24px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.learn-title {
+  font-size: 20px;
+  text-align: center;
+  margin: 2px 0 0;
+}
+.learn-sec {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.learn-staff {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+.learn-note-label {
+  min-height: 26px;
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+  margin: 0;
+}
+.learn-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 12px 16px;
+  width: 100%;
+}
+.learn-card p {
+  margin: 4px 0;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+.learn-card-title {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+.learn-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+.learn-note-card {
+  min-width: var(--tap);
+  min-height: var(--tap);
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 10px;
+  gap: 2px;
+}
+.learn-note-card:hover {
+  border-color: var(--brand);
+}
+.lc-solfege {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--brand);
+}
+.lc-letter {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.learn-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+.learn-seg-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.learn-seg-label {
+  font-size: 13px;
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+.learn-seg-row .seg {
+  flex-wrap: wrap;
+}
+.learn-seg-row .seg-btn {
+  padding: 6px 10px;
+}
+@media (max-width: 380px) {
+  .learn-seg-row .seg-btn {
+    padding: 6px 7px;
+    font-size: 12px;
+  }
+}
+.learn-cta {
+  position: sticky;
+  bottom: 0;
+  margin-top: auto;
+  padding: 10px 0 4px;
+  display: flex;
+  justify-content: center;
+  background: linear-gradient(transparent, var(--bg) 40%);
+}
+.learn-cta .btn {
+  width: 100%;
+  max-width: 420px;
+}
+.chip.dim {
+  opacity: 0.35;
+}
+.chip.active {
+  border-color: var(--brand);
+  color: var(--brand);
+  background: var(--brand-050);
+}
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.stepper .count {
+  font-size: 22px;
+  font-weight: 800;
+  min-width: 28px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.stack-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--line);
+  font-size: 15px;
+}
+.stack-role {
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+.stack-note {
+  font-weight: 700;
+}
+.stack-hint {
+  font-size: 13px;
+}
+.learn-baug {
+  color: var(--hint);
+  font-size: 13px;
+  min-height: 18px;
+  margin: 0;
+  text-align: center;
+}
+/* 홈 카드 학습 버튼 + NEW 배지, 결과 화면 넛지 */
+.learn-btn {
+  padding: 8px 12px;
+  min-height: 40px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.new-badge {
+  background: var(--bad);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 999px;
+  margin-left: 6px;
+}
+.nudge {
+  color: var(--hint);
+  font-weight: 700;
+  margin: 6px 0 0;
+}
+
 /* ── 애니메이션 ───────────────────────── */
 @keyframes pop {
   0% {

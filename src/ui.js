@@ -7,8 +7,8 @@ import { createStaffSVG } from './staff.js';
 import { playCorrect, playWrong, toggleMute, setMuted, setVolume } from './audio.js';
 import { saveSettings } from './storage.js';
 
-// ── DOM 헬퍼 ─────────────────────────────────────────
-function h(tag, attrs = {}, ...kids) {
+// ── DOM 헬퍼 (learn.js도 사용 — learn→ui 단방향, ui는 learn을 import하지 않음) ──
+export function h(tag, attrs = {}, ...kids) {
   const e = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
     if (v == null || v === false) continue;
@@ -34,7 +34,7 @@ function goHome() {
   location.hash = '#/menu';
 }
 
-function segmented(options, current, onPick, aria) {
+export function segmented(options, current, onPick, aria) {
   return h(
     'div',
     { class: 'seg', role: 'group', 'aria-label': aria || '' },
@@ -52,7 +52,7 @@ function segmented(options, current, onPick, aria) {
   );
 }
 
-function appBar(state, { backAction, progress, noSettings } = {}) {
+export function appBar(state, { backAction, progress, noSettings } = {}) {
   // 사운드 quick toggle: setState 없이 직접 갱신 — 피드백 대기 중 재렌더 점프(B1) 방지
   const soundBtn = h(
     'button',
@@ -146,6 +146,12 @@ export function renderMenu(state) {
           },
         },
         t('start')
+      ),
+      h(
+        'button',
+        { class: 'btn ghost learn-btn', onclick: () => (location.hash = '#/learn/' + mode.id) },
+        '📖 ' + t('learn'),
+        state.learnSeen[mode.id] ? null : h('span', { class: 'new-badge' }, 'NEW')
       )
     );
   });
@@ -334,13 +340,18 @@ export function renderResult(state) {
     }
   });
 
+  // 정확도 <70%(별 0) → 학습 유도가 1순위 (학습→재도전 순환 루프)
+  const lowScore = stars === 0 && !!mode;
   const buttons = h(
     'div',
     { class: 'result-btns' },
+    lowScore
+      ? h('button', { class: 'btn primary', onclick: () => (location.hash = '#/learn/' + mode.id) }, t('learnAndRetry'))
+      : null,
     h(
       'button',
       {
-        class: 'btn primary',
+        class: lowScore ? 'btn ghost' : 'btn primary',
         onclick: () => {
           if (mode) {
             startQuiz(mode);
@@ -367,6 +378,7 @@ export function renderResult(state) {
       h('p', { class: 'acc-text' }, `${t('accuracy')} ${acc}% · ${t('score')} ${quiz.score} · ${t('combo')} ${quiz.maxCombo}`),
       allCorrect ? h('p', { class: 'all-correct' }, t('allCorrect')) : h('h2', { class: 'review-title' }, t('reviewWrong')),
       review,
+      lowScore ? h('p', { class: 'nudge' }, t('lowScoreNudge')) : null,
       buttons
     )
   );

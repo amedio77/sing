@@ -218,7 +218,8 @@ const chord = {
       answer: target.id,
       labelFor: (id) => (dir === 'notes2name' ? byId[id].symbol : notesLabel(byId[id])),
       playAudio: () => playChord(target.tones.map((tn) => tn.pitch)),
-      hint: `${target.symbol} (${target.ko}) = ${target.hint}`,
+      hint:
+        st.lang === 'ko' ? `${target.symbol} (${target.ko}) = ${target.hint}` : `${target.symbol} (${target.nameEn}) = ${target.hintEn}`,
       review: { kind: 'chord', symbol: target.symbol, notes: notesLabel(target) },
     };
   },

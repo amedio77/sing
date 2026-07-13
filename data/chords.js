@@ -6,13 +6,13 @@
 import { LETTERS, LETTER_STEP, SEMITONE, SOLFEGE } from './notes.js';
 
 export const CHORD_QUALITIES = {
-  maj: { semis: [0, 4, 7], letters: [0, 2, 4], suffix: '', ko: '메이저', triad: true, hint: '루트 + 장3도(4반음) + 완전5도(7반음)' },
-  min: { semis: [0, 3, 7], letters: [0, 2, 4], suffix: 'm', ko: '마이너', triad: true, hint: '루트 + 단3도(3반음) + 완전5도(7반음)' },
-  aug: { semis: [0, 4, 8], letters: [0, 2, 4], suffix: 'aug', ko: '증3화음', triad: true, hint: '루트 + 장3도 + 증5도(8반음)' },
-  dim: { semis: [0, 3, 6], letters: [0, 2, 4], suffix: 'dim', ko: '감3화음', triad: true, hint: '루트 + 단3도 + 감5도(6반음)' },
-  dom7: { semis: [0, 4, 7, 10], letters: [0, 2, 4, 6], suffix: '7', ko: '도미넌트7', triad: false, hint: '메이저 + 단7도(10반음)' },
-  maj7: { semis: [0, 4, 7, 11], letters: [0, 2, 4, 6], suffix: 'maj7', ko: '메이저7', triad: false, hint: '메이저 + 장7도(11반음)' },
-  min7: { semis: [0, 3, 7, 10], letters: [0, 2, 4, 6], suffix: 'm7', ko: '마이너7', triad: false, hint: '마이너 + 단7도(10반음)' },
+  maj: { semis: [0, 4, 7], letters: [0, 2, 4], suffix: '', ko: '메이저', nameEn: 'major', triad: true, hint: '루트 + 장3도(4반음) + 완전5도(7반음)', hintEn: 'root + major 3rd (4 semitones) + perfect 5th (7)' },
+  min: { semis: [0, 3, 7], letters: [0, 2, 4], suffix: 'm', ko: '마이너', nameEn: 'minor', triad: true, hint: '루트 + 단3도(3반음) + 완전5도(7반음)', hintEn: 'root + minor 3rd (3 semitones) + perfect 5th (7)' },
+  aug: { semis: [0, 4, 8], letters: [0, 2, 4], suffix: 'aug', ko: '증3화음', nameEn: 'augmented', triad: true, hint: '루트 + 장3도 + 증5도(8반음)', hintEn: 'root + major 3rd + augmented 5th (8 semitones)' },
+  dim: { semis: [0, 3, 6], letters: [0, 2, 4], suffix: 'dim', ko: '감3화음', nameEn: 'diminished', triad: true, hint: '루트 + 단3도 + 감5도(6반음)', hintEn: 'root + minor 3rd + diminished 5th (6 semitones)' },
+  dom7: { semis: [0, 4, 7, 10], letters: [0, 2, 4, 6], suffix: '7', ko: '도미넌트7', nameEn: 'dominant 7th', triad: false, hint: '메이저 + 단7도(10반음)', hintEn: 'major triad + minor 7th (10 semitones)' },
+  maj7: { semis: [0, 4, 7, 11], letters: [0, 2, 4, 6], suffix: 'maj7', ko: '메이저7', nameEn: 'major 7th', triad: false, hint: '메이저 + 장7도(11반음)', hintEn: 'major triad + major 7th (11 semitones)' },
+  min7: { semis: [0, 3, 7, 10], letters: [0, 2, 4, 6], suffix: 'm7', ko: '마이너7', nameEn: 'minor 7th', triad: false, hint: '마이너 + 단7도(10반음)', hintEn: 'minor triad + minor 7th (10 semitones)' },
 };
 
 const ACC_SYM = { '-2': '♭♭', '-1': '♭', 0: '', 1: '♯', 2: '♯♯' };
@@ -50,7 +50,9 @@ export function makeChord(rootLetter, quality) {
     root: rootLetter,
     quality,
     ko: q.ko,
+    nameEn: q.nameEn,
     hint: q.hint,
+    hintEn: q.hintEn,
     tones,
     // 겹임시표(±2) 포함 여부 — 모드 출제 풀 제외 판정용 (Baug=F##)
     hasDoubleAccidental: tones.some((t) => Math.abs(t.acc) >= 2),
