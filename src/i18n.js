@@ -97,6 +97,7 @@ const DICT = {
     third: '3도',
     fifth: '5도',
     seventh: '7도',
+    allChords: '전체 코드 모아보기',
   },
   en: {
     appTitle: 'Learn the Staff',
@@ -182,6 +183,7 @@ const DICT = {
     third: '3rd',
     fifth: '5th',
     seventh: '7th',
+    allChords: 'All chords at a glance',
   },
 };
 

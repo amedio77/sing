@@ -21,7 +21,7 @@ import {
   FLAT_MNEMONIC_EN,
   KEY_RULES,
 } from '../data/keys.js';
-import { makeChord } from '../data/chords.js';
+import { CHORD_QUALITIES, makeChord } from '../data/chords.js';
 import { saveProgress } from './storage.js';
 
 const app = () => document.getElementById('app');
@@ -194,44 +194,67 @@ function learnClef(state, main) {
 
 // ── 모드 B: 도레미 ↔ CDE 카드 ─────────────────────────
 function learnMatching(state, main) {
-  const staffBox = h('div', { class: 'learn-staff' }, createStaffSVG(CLEFS.treble));
-  const label = h('p', { class: 'learn-note-label', 'aria-live': 'polite' }, t('tapLineOrSpace'));
+  // 자리표 로컬 토글 — 계이름↔글자 암기는 자리표 무관(퀴즈는 treble 고정)이지만,
+  // 같은 계이름이 낮은음자리표에선 어디 놓이는지도 함께 학습한다.
+  let clefId = 'treble';
+  const sec = h('div', { class: 'learn-sec' });
+  main.appendChild(sec);
 
-  function cardFor(letter, oct, cycle = false) {
-    const note = makeNote(letter, oct);
-    return h(
-      'button',
-      {
-        class: 'learn-note-card' + (cycle ? ' cycle' : ''),
-        onclick: () => {
-          staffBox.replaceChildren(createStaffSVG(CLEFS.treble, note, { highlight: true }));
-          label.textContent = `${SOLFEGE[letter]} · ${letter}${oct}`;
-          playNote(letter + oct);
+  function render() {
+    const clef = CLEFS[clefId];
+    const baseOct = clefId === 'treble' ? 4 : 3; // bass는 C3~B3가 오선 안팎에 자연스럽게 놓임
+    const staffBox = h('div', { class: 'learn-staff' }, createStaffSVG(clef));
+    const label = h('p', { class: 'learn-note-label', 'aria-live': 'polite' }, t('tapLineOrSpace'));
+
+    function cardFor(letter, oct, cycle = false) {
+      const note = makeNote(letter, oct);
+      return h(
+        'button',
+        {
+          class: 'learn-note-card' + (cycle ? ' cycle' : ''),
+          onclick: () => {
+            staffBox.replaceChildren(createStaffSVG(clef, note, { highlight: true }));
+            label.textContent = `${SOLFEGE[letter]} · ${letter}${oct}`;
+            playNote(letter + oct);
+          },
         },
-      },
-      h('span', { class: 'lc-solfege' }, (cycle ? '(' : '') + SOLFEGE[letter] + (cycle ? ') ↺' : '')),
-      h('span', { class: 'lc-letter' }, letter + oct)
-    );
-  }
-  const cards = [...LETTERS.map((l) => cardFor(l, 4)), cardFor('C', 5, true)]; // 8번째 = 옥타브 순환
+        h('span', { class: 'lc-solfege' }, (cycle ? '(' : '') + SOLFEGE[letter] + (cycle ? ') ↺' : '')),
+        h('span', { class: 'lc-letter' }, letter + oct)
+      );
+    }
+    const cards = [...LETTERS.map((l) => cardFor(l, baseOct)), cardFor('C', baseOct + 1, true)]; // 8번째 = 옥타브 순환
 
-  main.append(
-    h(
-      'div',
-      { class: 'learn-sec' },
+    sec.replaceChildren(
+      h(
+        'div',
+        { class: 'learn-seg-row' },
+        segmented(
+          [
+            { value: 'treble', label: t('treble') },
+            { value: 'bass', label: t('bass') },
+          ],
+          clefId,
+          (v) => {
+            clefId = v; // 로컬만 변경
+            render();
+          },
+          t('clef')
+        )
+      ),
       staffBox,
       label,
       h('div', { class: 'learn-cards' }, cards),
-      seqButton(t('playInOrder'), () => [...LETTERS.map((l) => l + '4'), 'C5'])
-    ),
-    h(
-      'div',
-      { class: 'learn-card' },
-      h('div', { class: 'learn-card-title' }, '💡 ' + t('fixedDoTitle')),
-      h('p', {}, t('fixedDoDesc')),
-      h('p', {}, t('octaveCycleDesc'))
-    )
-  );
+      seqButton(t('playInOrder'), () => [...LETTERS.map((l) => l + baseOct), 'C' + (baseOct + 1)]),
+      h(
+        'div',
+        { class: 'learn-card' },
+        h('div', { class: 'learn-card-title' }, '💡 ' + t('fixedDoTitle')),
+        h('p', {}, t('fixedDoDesc')),
+        h('p', {}, t('octaveCycleDesc'))
+      )
+    );
+  }
+  render();
 }
 
 // ── 모드 C: 조표 순서 스테퍼 ──────────────────────────
@@ -385,7 +408,35 @@ function learnChord(state, main) {
         ),
         h('p', { class: 'stack-hint' }, (lang() === 'ko' ? c.hint : c.hintEn) + ' — ' + t('stackDesc'))
       ),
-      h('div', { class: 'learn-row' }, stackBtn, togetherBtn, cmpBtn)
+      h('div', { class: 'learn-row' }, stackBtn, togetherBtn, cmpBtn),
+      // 전체 코드 한눈에 — 성질별 7행 × 루트 7. 칩 클릭 = 위 탐색기에 로드 + 소리 (전수 커버리지)
+      h(
+        'div',
+        { class: 'learn-card' },
+        h('div', { class: 'learn-card-title' }, '🗂 ' + t('allChords')),
+        QUALS.map((q) =>
+          h(
+            'div',
+            { class: 'chord-grid-row' },
+            h('span', { class: 'learn-seg-label' }, QUAL_LABEL[q]),
+            LETTERS.map((l) =>
+              h(
+                'button',
+                {
+                  class: 'chip chord-chip' + (l === root && q === quality ? ' active' : ''),
+                  onclick: () => {
+                    root = l;
+                    quality = q;
+                    render();
+                    playChord(makeChord(l, q).tones.map((tn) => tn.pitch));
+                  },
+                },
+                l + CHORD_QUALITIES[q].suffix
+              )
+            )
+          )
+        )
+      )
     );
   }
   render();

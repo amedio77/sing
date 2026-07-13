@@ -52,7 +52,7 @@ export function segmented(options, current, onPick, aria) {
   );
 }
 
-export function appBar(state, { backAction, progress, noSettings } = {}) {
+export function appBar(state, { backAction, progress, center, noSettings } = {}) {
   // 사운드 quick toggle: setState 없이 직접 갱신 — 피드백 대기 중 재렌더 점프(B1) 방지
   const soundBtn = h(
     'button',
@@ -101,7 +101,7 @@ export function appBar(state, { backAction, progress, noSettings } = {}) {
         ),
         h('span', { class: 'progress-text' }, `${progress.i} / ${progress.total}`)
       )
-    : h('span', { class: 'progress' });
+    : center || h('span', { class: 'progress' });
 
   return h('header', { class: 'appbar' }, left, mid, h('div', { class: 'appbar-right' }, soundBtn, setBtn));
 }
@@ -156,54 +156,39 @@ export function renderMenu(state) {
     );
   });
 
-  // 플레이 옵션(난이도·문항수) = 다음 세션 구성, 한 줄 배치. 전역 설정(언어·표기·사운드)은 ⚙ 설정 페이지로 일원화.
-  const controls = h(
+  // 플레이 옵션(난이도·문항수) = 앱바 중앙 컴팩트 배치 (음소거 버튼 옆).
+  // 전역 설정(언어·표기·사운드)은 ⚙ 설정 페이지로 일원화.
+  const playOpts = h(
     'div',
-    { class: 'menu-controls' },
-    h(
-      'div',
-      { class: 'ctrl-line' },
-      h('h2', { class: 'ctrl-title' }, t('playOptions')),
-      h(
-        'div',
-        { class: 'ctrl-row' },
-        h('span', { class: 'ctrl-label' }, t('difficulty')),
-        segmented(
-          [
-            { value: 'easy', label: t('easy') },
-            { value: 'normal', label: t('normal') },
-          ],
-          state.difficulty,
-          (v) => setState({ difficulty: v }),
-          t('difficulty')
-        )
-      ),
-      h(
-        'div',
-        { class: 'ctrl-row' },
-        h('span', { class: 'ctrl-label' }, t('questions')),
-        segmented(
-          [
-            { value: 5, label: '5' },
-            { value: 10, label: '10' },
-          ],
-          state.total,
-          (v) => setState({ total: v }),
-          t('questions')
-        )
-      )
+    { class: 'appbar-opts', role: 'group', 'aria-label': t('playOptions') },
+    segmented(
+      [
+        { value: 'easy', label: t('easy') },
+        { value: 'normal', label: t('normal') },
+      ],
+      state.difficulty,
+      (v) => setState({ difficulty: v }),
+      t('difficulty')
+    ),
+    segmented(
+      [
+        { value: 5, label: '5' },
+        { value: 10, label: '10' },
+      ],
+      state.total,
+      (v) => setState({ total: v }),
+      t('questions')
     )
   );
 
   app().replaceChildren(
-    appBar(state, {}),
+    appBar(state, { center: playOpts }),
     h(
       'main',
       { class: 'menu' },
       h('h1', { class: 'title' }, '🎵 ' + t('appTitle')),
       h('p', { class: 'subtitle' }, t('appSubtitle')),
-      h('div', { class: 'mode-grid' }, cards),
-      controls
+      h('div', { class: 'mode-grid' }, cards)
     )
   );
 }
