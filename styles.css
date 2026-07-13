@@ -242,6 +242,10 @@ button {
 .mode-card .btn {
   width: 100%;
 }
+/* 시작 버튼을 카드 하단 기준으로 정렬 — 옵션(음자리표) 유무와 무관하게 같은 줄 카드끼리 줄 맞춤 */
+.mode-card .btn.primary {
+  margin-top: auto;
+}
 /* 플레이 옵션(난이도·문항수) — 홈 앱바 중앙 컴팩트 배치 */
 .appbar-opts {
   flex: 1;
