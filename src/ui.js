@@ -4,7 +4,7 @@ import { getState, setState, startQuiz } from './game.js';
 import { MODES } from './modes.js';
 import { t } from './i18n.js';
 import { createStaffSVG } from './staff.js';
-import { playCorrect, playWrong, toggleMute, setMuted, setVolume } from './audio.js';
+import { playCorrect, playWrong, toggleMute, setMuted, setVolume, setTimbre, playNote } from './audio.js';
 import { saveSettings, loadRewards, saveRewards } from './storage.js';
 import { createMascot, celebrateNotes } from './mascot.js';
 
@@ -494,6 +494,40 @@ export function renderSettings(state) {
         )
       ),
       h('div', { class: 'set-row' }, h('span', { class: 'set-label' }, t('volume')), volSlider, volLabel),
+      // 음색 — 변경 즉시 미리듣기 1음 재생 (WebAudio 합성, 파일 없음)
+      h(
+        'div',
+        { class: 'set-row' },
+        h('span', { class: 'set-label' }, t('timbre')),
+        segmented(
+          [
+            { value: 'piano', label: t('timbrePiano') },
+            { value: 'simple', label: t('timbreSimple') },
+          ],
+          state.timbre,
+          (v) => {
+            setTimbre(v);
+            setState({ timbre: v });
+            playNote('C4', 400); // 미리듣기
+          },
+          t('timbre')
+        )
+      ),
+      // 계이름 읽어주기(TTS) — 학습 페이지에서 음 재생 시 이름 발화. 사운드 Off면 함께 무음
+      h(
+        'div',
+        { class: 'set-row' },
+        h('span', { class: 'set-label' }, t('speakNames')),
+        segmented(
+          [
+            { value: true, label: 'On' },
+            { value: false, label: 'Off' },
+          ],
+          state.speakNames,
+          (v) => setState({ speakNames: v }),
+          t('speakNames')
+        )
+      ),
       // 캐릭터 토글 — 성인 사용자용 안전판. OFF여도 색·기호·게이지 피드백은 유지(docs/05 §5)
       h(
         'div',

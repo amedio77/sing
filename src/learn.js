@@ -8,6 +8,7 @@ import { h, segmented, appBar } from './ui.js';
 import { t, noteLabel, letterLabel } from './i18n.js';
 import { createStaffSVG, createChordSVG, createKeySigSVG, noteToY } from './staff.js';
 import { playNote, playChord, playSequence } from './audio.js';
+import { speakNote } from './speech.js';
 import { CLEFS } from '../data/clefs.js';
 import { LETTERS, SOLFEGE, makeNote } from '../data/notes.js';
 import {
@@ -31,6 +32,16 @@ function ordinalEn(n) {
   const v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
+// 계이름 읽어주기 — 학습 페이지 한정(퀴즈는 정답 누설 위험으로 금지, docs/05 검토).
+// 발화 텍스트는 표기(notation) 축 우선, 'both'면 UI 언어. 피아노 음 뒤에 이어 말한다.
+function speakNoteName(note) {
+  const st = getState();
+  if (!st.audioEnabled || !st.speakNames) return;
+  const text =
+    st.notation === 'english' ? note.english : st.notation === 'solfege' ? note.solfege : st.lang === 'en' ? note.english : note.solfege;
+  speakNote(text, 380);
+}
+
 // 시퀀스 재생 버튼: 실재생 시간만큼 disabled (연타로 소리 겹침 방지)
 function seqButton(label, notes, gapMs = 350, durMs = 300) {
   const btn = h(
@@ -139,6 +150,7 @@ function learnClef(state, main) {
       staffBox.replaceChildren(drawExploreStaff(note));
       label.textContent = `${noteLabel(note)} — ${posDesc(p)}`; // 이름 + 위치
       playNote(p.letter + p.oct); // + 소리 = 삼중 일치
+      speakNoteName(note); // + 계이름 발음 (설정 게이트)
     }
     staffBox.appendChild(drawExploreStaff(null));
 
@@ -184,7 +196,17 @@ function learnClef(state, main) {
           'div',
           { class: 'hint-body' },
           h('p', {}, t('middleCDesc')),
-          h('button', { class: 'btn ghost listen', onclick: () => playNote('C4') }, t('listenMiddleC'))
+          h(
+            'button',
+            {
+              class: 'btn ghost listen',
+              onclick: () => {
+                playNote('C4');
+                speakNoteName(makeNote('C', 4));
+              },
+            },
+            t('listenMiddleC')
+          )
         )
       )
     );
@@ -216,6 +238,7 @@ function learnMatching(state, main) {
             staffBox.replaceChildren(createStaffSVG(clef, note, { highlight: true }));
             label.textContent = `${SOLFEGE[letter]} · ${letter}${oct}`;
             playNote(letter + oct);
+            speakNoteName(note);
           },
         },
         h('span', { class: 'lc-solfege' }, (cycle ? '(' : '') + SOLFEGE[letter] + (cycle ? ') ↺' : '')),

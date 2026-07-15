@@ -26,6 +26,7 @@ let ctx = null;
 let master = null;
 let volume = 0.3;
 let muted = false;
+let timbre = 'piano'; // 'simple' | 'piano' — 설정에서 변경, main.js가 저장값 주입
 
 function ensure() {
   if (!ctx) {
@@ -57,11 +58,53 @@ export function unlock() {
   if (ctx.state === 'suspended') ctx.resume();
 }
 
+// 피아노풍 합성: 배음 4개(합≈1로 정규화) + 타건 어택/지수 감쇠 + 로우패스.
+// 샘플 파일 없이 '전자피아노' 근사 — 무빌드·오프라인 제약 유지(docs/05 §6).
+const PIANO_PARTIALS = [
+  [1, 0.62],
+  [2, 0.22],
+  [3, 0.1],
+  [4.02, 0.05], // 살짝 비조화 4배음 — 현 울림 느낌
+];
+function pianoVoice(freq, t0, dur, peak) {
+  const out = ctx.createGain();
+  const lp = ctx.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.setValueAtTime(Math.min(freq * 8, 6000), t0);
+  lp.frequency.exponentialRampToValueAtTime(Math.max(freq * 2, 800), t0 + Math.min(dur, 0.5)); // 타건 밝기 감쇠
+  out.connect(lp);
+  lp.connect(master);
+  const g = out.gain;
+  g.setValueAtTime(0.0001, t0);
+  g.exponentialRampToValueAtTime(peak, t0 + 0.006); // 빠른 어택(타건감)
+  g.exponentialRampToValueAtTime(peak * 0.3, t0 + Math.min(0.28, dur * 0.7));
+  g.exponentialRampToValueAtTime(0.0001, t0 + dur + 0.22); // 잔향 꼬리
+  const stopAt = t0 + dur + 0.25;
+  const nodes = [out, lp];
+  PIANO_PARTIALS.forEach(([mult, amp], i) => {
+    const osc = ctx.createOscillator();
+    const og = ctx.createGain();
+    osc.frequency.value = freq * mult;
+    og.gain.value = amp;
+    osc.connect(og);
+    og.connect(out);
+    osc.start(t0);
+    osc.stop(stopAt);
+    nodes.push(osc, og);
+    if (i === 0) osc.onended = () => nodes.forEach((n) => n.disconnect()); // 일괄 정리
+  });
+}
+
 export function playNote(note, durationMs = 500, { type = 'sine', peak = 1 } = {}) {
   if (!ensure() || muted) return;
   if (ctx.state === 'suspended') ctx.resume();
   const t0 = ctx.currentTime;
   const dur = durationMs / 1000;
+  // 음정 재생(sine)만 음색 적용 — 효과음(square 버저 등 명시 type)은 그대로
+  if (timbre === 'piano' && type === 'sine') {
+    pianoVoice(noteToFreq(note), t0, dur, peak);
+    return;
+  }
   const osc = ctx.createOscillator();
   const env = ctx.createGain();
   osc.type = type;
@@ -116,4 +159,12 @@ export function toggleMute() {
 export function setMuted(v) {
   muted = !!v;
   if (master) master.gain.setTargetAtTime(muted ? 0 : volume, ctx.currentTime, 0.02);
+}
+
+export function setTimbre(v) {
+  timbre = v === 'simple' ? 'simple' : 'piano';
+}
+
+export function getTimbre() {
+  return timbre;
 }
