@@ -8,7 +8,7 @@ const SETTINGS_KEY = 'sing-settings-v1';
 const PROGRESS_KEY = 'sing-progress-v1';
 const REWARDS_KEY = 'sing-rewards-v1';
 
-const PICK = ['lang', 'notation', 'audioEnabled', 'volume', 'difficulty', 'total', 'clef', 'mascotEnabled'];
+const PICK = ['lang', 'notation', 'audioEnabled', 'volume', 'difficulty', 'total', 'clef', 'mascotEnabled', 'timbre', 'speakNames'];
 
 // 항목 단위 화이트리스트: 오염·구버전 값은 그 항목만 버리고 기본값 유지 (fail-safe)
 const VALID = {
@@ -20,6 +20,8 @@ const VALID = {
   total: (v) => v === 5 || v === 10,
   clef: (v) => ['treble', 'bass', 'both'].includes(v),
   mascotEnabled: (v) => typeof v === 'boolean',
+  timbre: (v) => v === 'simple' || v === 'piano',
+  speakNames: (v) => typeof v === 'boolean',
 };
 
 function read(key) {

@@ -8,6 +8,8 @@ export const state = {
   route: '', // 현재 해시 라우트
   audioEnabled: true, // 소리 On/Off (음소거 토글)
   mascotEnabled: true, // 마스코트 '싱가' 표시 — OFF여도 색·기호 피드백은 유지(docs/05 §5)
+  timbre: 'piano', // 음색: 'simple' | 'piano' (WebAudio 합성)
+  speakNames: true, // 계이름 읽어주기(TTS) — 학습 페이지 한정, audioEnabled와 AND 게이트
   volume: 0.3,
   total: 10, // 한 스테이지 문항 수 (5 | 10)
   difficulty: 'easy', // 'easy' | 'normal'
