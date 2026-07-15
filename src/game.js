@@ -7,6 +7,7 @@ export const state = {
   notation: 'both', // 계이름 표기: 'solfege' | 'english' | 'both'
   route: '', // 현재 해시 라우트
   audioEnabled: true, // 소리 On/Off (음소거 토글)
+  mascotEnabled: true, // 마스코트 '싱가' 표시 — OFF여도 색·기호 피드백은 유지(docs/05 §5)
   volume: 0.3,
   total: 10, // 한 스테이지 문항 수 (5 | 10)
   difficulty: 'easy', // 'easy' | 'normal'

@@ -5,7 +5,8 @@ import { MODES } from './modes.js';
 import { t } from './i18n.js';
 import { createStaffSVG } from './staff.js';
 import { playCorrect, playWrong, toggleMute, setMuted, setVolume } from './audio.js';
-import { saveSettings } from './storage.js';
+import { saveSettings, loadRewards, saveRewards } from './storage.js';
+import { createMascot, celebrateNotes } from './mascot.js';
 
 // ── DOM 헬퍼 (learn.js도 사용 — learn→ui 단방향, ui는 learn을 import하지 않음) ──
 export function h(tag, attrs = {}, ...kids) {
@@ -109,8 +110,14 @@ export function appBar(state, { backAction, progress, center, noSettings } = {})
 // ── 홈 (메뉴) ────────────────────────────────────────
 export function renderMenu(state) {
   window.onkeydown = null;
+  const rewards = loadRewards(); // 모드별 최고 별점 배지용
   const cards = MODES.map((mode) => {
     const icon = { 'clef-position': '𝄞 𝄢', 'note-matching': '도 = C', 'key-order': '♯ ♭', chord: '🎹' }[mode.id];
+    const best = rewards.best[mode.id];
+    const bestBadge =
+      best && best.stars > 0
+        ? h('span', { class: 'card-best', 'aria-label': `${t('best')} ${best.stars}/3` }, '★'.repeat(best.stars) + '☆'.repeat(3 - best.stars))
+        : null;
     // 음자리표는 모드 A 한정 옵션 → 카드 안에 배치 (적용 범위가 배치로 자명)
     const clefSeg =
       mode.id === 'clef-position'
@@ -132,6 +139,7 @@ export function renderMenu(state) {
     return h(
       'div',
       { class: 'mode-card', 'data-mode': mode.id },
+      bestBadge,
       h('div', { class: 'mode-icon' }, icon),
       h('h2', { class: 'mode-name' }, t(mode.name)),
       h('p', { class: 'mode-desc' }, t(mode.name + 'Desc')),
@@ -186,7 +194,8 @@ export function renderMenu(state) {
     h(
       'main',
       { class: 'menu' },
-      h('h1', { class: 'title' }, '🎵 ' + t('appTitle')),
+      // 홈 타이틀: 싱가(idle, 눈 깜빡임만 — 정보 없는 말풍선·상시 모션 금지. docs/05 §2 P6)
+      h('h1', { class: 'title' }, state.mascotEnabled ? createMascot({ mood: 'idle', size: 32 }) : '🎵', ' ' + t('appTitle')),
       h('p', { class: 'subtitle' }, t('appSubtitle')),
       h('div', { class: 'mode-grid' }, cards)
     )
@@ -210,7 +219,8 @@ export function renderMode(state, mode) {
   const visual = h('div', { class: 'stage-visual stage-' + q.kind });
   q.render(visual);
 
-  const feedback = h('div', { class: 'feedback', 'aria-live': 'polite', role: 'status' });
+  // 캐릭터 ON이면 문항 시작부터 싱가 크기만큼 높이 예약(feedback--mascot) — 답변 시 점프 방지
+  const feedback = h('div', { class: 'feedback' + (state.mascotEnabled ? ' feedback--mascot' : ''), 'aria-live': 'polite', role: 'status' });
 
   const hintBox = h(
     'details',
@@ -252,6 +262,22 @@ export function renderMode(state, mode) {
   };
 }
 
+// 피드백 표시: 텍스트(aria-live 낭독 대상) + 싱가 리액션(장식, aria-hidden).
+// 캐릭터 OFF면 텍스트만 — 색·✓✗ 기호 등 비캐릭터 피드백은 그대로 유지(docs/05 §5 토글 폴백).
+// hop/tilt 모션은 CSS reduced-motion 블록이 무효화하므로 JS 분기 불필요.
+function showFeedback(feedbackEl, ok, msg) {
+  const mascotOn = getState().mascotEnabled;
+  const kids = [];
+  if (mascotOn) {
+    const m = createMascot({ mood: ok ? 'happy' : 'hmm', size: 44 });
+    m.classList.add(ok ? 'mascot-hop' : 'mascot-tilt');
+    kids.push(m);
+  }
+  kids.push(h('span', {}, msg));
+  feedbackEl.replaceChildren(...kids);
+  feedbackEl.className = 'feedback' + (mascotOn ? ' feedback--mascot' : '') + (ok ? ' ok' : ' bad');
+}
+
 function onChoose(mode, key, gridEl, feedbackEl, hintBox, q) {
   const quiz = getState().quiz;
   if (quiz._locked) return;
@@ -268,13 +294,11 @@ function onChoose(mode, key, gridEl, feedbackEl, hintBox, q) {
   }
 
   if (res.ok) {
-    feedbackEl.textContent = '✓ ' + t('correct');
-    feedbackEl.className = 'feedback ok';
+    showFeedback(feedbackEl, true, '✓ ' + t('correct'));
     playCorrect(); // 구별되는 상승 차임(성공 효과음)
     setTimeout(() => stillHere() && q.playAudio(), 300); // 그 뒤 실제 음(학습)
   } else {
-    feedbackEl.textContent = `✗ ${t('wrong')} — ${q.labelFor(res.correct)}`;
-    feedbackEl.className = 'feedback bad';
+    showFeedback(feedbackEl, false, `✗ ${t('wrong')} — ${q.labelFor(res.correct)}`);
     hintBox.open = true;
     playWrong(); // 구별되는 하강 버저(실패 효과음)
     setTimeout(() => stillHere() && q.playAudio(), 500); // 그 뒤 정답 음 각인
@@ -302,6 +326,21 @@ export function renderResult(state) {
   const mode = MODES.find((m) => m.id === state.activeModeId);
   const acc = Math.round(quiz.accuracy() * 100);
   const stars = quiz.stars();
+  const allCorrect = quiz.wrongLog.length === 0;
+
+  // 보상 영속화(sing-rewards-v1) — 최고값만 넓히는 idempotent 병합(재렌더·재진입 무해)
+  const rewards = loadRewards();
+  const prev = state.activeModeId ? rewards.best[state.activeModeId] : null;
+  const firstClear = !!state.activeModeId && !prev;
+  const newRecord = !!prev && (stars > prev.stars || quiz.score > prev.score);
+  if (state.activeModeId) {
+    rewards.best[state.activeModeId] = {
+      stars: Math.max(prev ? prev.stars : 0, stars),
+      score: Math.max(prev ? prev.score : 0, quiz.score),
+    };
+    saveRewards(rewards);
+  }
+
   const starEl = h(
     'div',
     { class: 'stars', 'aria-label': `${stars}/3` },
@@ -353,14 +392,15 @@ export function renderResult(state) {
     h('button', { class: 'btn ghost', onclick: goHome }, '🏠 ' + t('toHome'))
   );
 
-  const allCorrect = quiz.wrongLog.length === 0;
+  // 정확도 3구간 표정: 만점=cheer / 별 1개 이상=happy / 미만=hmm+학습 넛지 (실망 연출 금지)
+  const heroMood = allCorrect ? 'cheer' : stars >= 1 ? 'happy' : 'hmm';
 
   app().replaceChildren(
     appBar(state, { backAction: goHome }),
     h(
       'main',
       { class: 'result' },
-      h('div', { class: 'result-emoji' }, allCorrect ? '🎉' : '👏'),
+      h('div', { class: 'result-emoji' }, state.mascotEnabled ? createMascot({ mood: heroMood, size: 88 }) : allCorrect ? '🎉' : '👏'),
       h('h1', { class: 'result-score' }, `${quiz.firstTryCorrect} / ${quiz.total}`),
       starEl,
       h('div', { class: 'accbar' }, h('div', { class: 'accbar-fill', style: `width:${acc}%` })),
@@ -371,6 +411,13 @@ export function renderResult(state) {
       buttons
     )
   );
+
+  // 컨페티는 희소 순간 한정: 만점·모드 첫 클리어·신기록, 별 1개 이상일 때만 (docs/05 §2 P2).
+  // 세션당 1회(_celebrated) — 결과 화면 재렌더·재진입 시 재발화 방지. reduced-motion no-op은 celebrateNotes 내부 처리.
+  if (state.mascotEnabled && stars > 0 && (allCorrect || firstClear || newRecord) && !quiz._celebrated) {
+    quiz._celebrated = true;
+    celebrateNotes();
+  }
 }
 
 // ── 설정 화면 ────────────────────────────────────────
@@ -447,6 +494,21 @@ export function renderSettings(state) {
         )
       ),
       h('div', { class: 'set-row' }, h('span', { class: 'set-label' }, t('volume')), volSlider, volLabel),
+      // 캐릭터 토글 — 성인 사용자용 안전판. OFF여도 색·기호·게이지 피드백은 유지(docs/05 §5)
+      h(
+        'div',
+        { class: 'set-row' },
+        h('span', { class: 'set-label' }, t('mascot')),
+        segmented(
+          [
+            { value: true, label: 'On' },
+            { value: false, label: 'Off' },
+          ],
+          state.mascotEnabled,
+          (v) => setState({ mascotEnabled: v }),
+          t('mascot')
+        )
+      ),
       h('p', { class: 'set-foot' }, t('settingsFootnote'))
     )
   );
