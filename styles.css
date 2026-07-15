@@ -13,6 +13,9 @@
   --bad: #c43b2e;
   --bad-050: #fbeae7;
   --hint: #b26a00;
+  --mascot-body: var(--brand); /* 싱가 몸통 — 브랜드 토큰 추종(다크 자동 대응) */
+  --mascot-ink: #fff; /* 눈·입 — 파란 몸통 위 흰색(양 테마 공용) */
+  --mascot-cheek: #ff9db1;
   --radius: 14px;
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 6px 20px rgba(0, 0, 0, 0.04);
   --tap: 48px;
@@ -31,6 +34,7 @@
     --bad: #f0796b;
     --bad-050: #3a1f1c;
     --hint: #e0a64a;
+    --mascot-cheek: #f08fa2; /* 다크: 채도 낮춰 형광 뜸 방지 */
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.25);
   }
 }
@@ -213,6 +217,7 @@ button {
   gap: 12px;
 }
 .mode-card {
+  position: relative; /* 최고 별점 배지(card-best) 기준 */
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -454,6 +459,14 @@ svg.staff {
   min-height: 26px;
   font-weight: 700;
   text-align: center;
+}
+/* 캐릭터 ON일 때만 싱가 크기만큼 높이 예약 — 답변 순간 레이아웃 점프(CLS) 방지 */
+.feedback--mascot {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 .feedback.ok {
   color: var(--ok);
@@ -810,6 +823,101 @@ svg.staff {
   margin: 6px 0 0;
 }
 
+/* ── 마스코트 '싱가' (docs/05-character-direction.md) ── */
+.mascot {
+  display: inline-block;
+  vertical-align: middle;
+  flex: 0 0 auto;
+}
+/* SVG 내부 CSS transform 기준 — 미지정 시 뷰포트 기준이라 파츠가 날아감(§6.2 함정).
+   눈(blink 대상)에만 한정 — 전체 적용 시 notehead의 rotate(-14 26 47) 속성 변환 기준이 틀어질 수 있음 */
+.mascot .mascot-eye {
+  transform-box: fill-box;
+}
+.mascot [data-face] {
+  opacity: 0;
+}
+.mascot[data-mood="idle"] [data-face="idle"],
+.mascot[data-mood="happy"] [data-face="happy"],
+.mascot[data-mood="cheer"] [data-face="cheer"],
+.mascot[data-mood="hmm"] [data-face="hmm"],
+.mascot[data-mood="sleepy"] [data-face="sleepy"] {
+  opacity: 1;
+}
+.mascot-cheek {
+  fill: var(--mascot-cheek);
+  opacity: 0.85;
+}
+.mascot--sm .mascot-cheek {
+  display: none; /* 44px 미만: 볼터치 제거(판독 우선) */
+}
+@keyframes mascot-blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  96% {
+    transform: scaleY(0.1);
+  }
+}
+.mascot[data-mood="idle"] .mascot-eye {
+  transform-origin: center;
+  animation: mascot-blink 4s infinite;
+}
+/* 정답: squash & stretch 원바운스(300ms대) / 오답: 갸웃 — 슬픔 아닌 "같이 갸웃"(§2 P3) */
+@keyframes mascot-hop {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  30% {
+    transform: translateY(0) scale(1.12, 0.86);
+  }
+  60% {
+    transform: translateY(-6px) scale(0.94, 1.08);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes mascot-tilt {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  40% {
+    transform: rotate(-5deg);
+  }
+  70% {
+    transform: rotate(3deg);
+  }
+}
+.mascot-hop {
+  transform-origin: center bottom;
+  animation: mascot-hop 0.32s ease;
+}
+.mascot-tilt {
+  transform-origin: center bottom;
+  animation: mascot-tilt 0.4s ease;
+}
+/* 홈 카드 최고 별점 배지 (sing-rewards-v1) */
+.card-best {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  color: var(--hint);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+/* 결과 컨페티 캔버스 */
+.confetti {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+}
+
 /* ── 애니메이션 ───────────────────────── */
 @keyframes pop {
   0% {
@@ -843,10 +951,14 @@ svg.staff {
 @media (prefers-reduced-motion: reduce) {
   .pop,
   .shake,
-  .accbar-fill {
+  .accbar-fill,
+  .mascot-hop,
+  .mascot-tilt,
+  .mascot[data-mood="idle"] .mascot-eye {
     animation: none;
     transition: none;
   }
+  /* 장식 모션만 끄고 표정·색 상태 피드백은 유지 (WCAG C39 취지, docs/05 §6.4) */
 }
 
 /* ── 반응형: 가로(landscape) 2단 ───────── */

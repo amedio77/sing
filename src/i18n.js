@@ -65,6 +65,8 @@ const DICT = {
     combo: '콤보',
     ordinal: '', // 한국어는 "3번째" → 접미 방식으로 처리
     settingsFootnote: '※ 설정은 이 기기에 자동 저장돼요',
+    mascot: '캐릭터 · 싱가',
+    best: '최고 기록',
     // 학습 페이지
     learn: '학습',
     startQuizNow: '▶ 바로 퀴즈 시작',
@@ -152,6 +154,8 @@ const DICT = {
     combo: 'Combo',
     ordinal: '',
     settingsFootnote: '※ Settings are saved on this device',
+    mascot: 'Mascot · Singa',
+    best: 'Best',
     learn: 'Learn',
     startQuizNow: '▶ Start the quiz',
     learnAndRetry: '📖 Review & retry',

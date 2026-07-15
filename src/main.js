@@ -22,6 +22,9 @@ const routes = {
 };
 
 function handle() {
+  // 라우트 전환 시 잔여 컨페티 정리 — 다음 화면 위로 계속 떨어지는 것 방지
+  const confetti = document.querySelector('.confetti');
+  if (confetti) confetti.remove();
   // '#/mode/clef-position' → ['#','mode','clef-position']
   const parts = (location.hash || '#/menu').split('/');
   const seg = parts[1] || 'menu';
