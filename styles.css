@@ -368,6 +368,126 @@ svg.staff {
   line-height: 1.25;
 }
 
+/* ── 모드 E: 음표와 쉼표 (리듬) ─────────── */
+/* 신규 리듬 도형은 currentColor를 쓴다: 다크모드는 토큰 1곳, 하이라이트는 클래스 토글로 끝난다.
+   (기존 fill="var(--ink)"는 presentation attribute라 저자 CSS로 덮어쓰기 까다롭다) */
+.rhy-item {
+  color: var(--ink);
+}
+.rhy-item.is-on {
+  color: var(--brand);
+}
+/* 색 단독 의존 금지 — 채운 머리에 윤곽을 더해 형태로도 구분된다 */
+.rhy-item.is-on .nh {
+  stroke: currentColor;
+  stroke-width: 2.5;
+  paint-order: stroke;
+}
+.rhythm-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+/* 시각 박 — 소리가 없어도 박이 흐르게 하는 채널(청각 비의존) */
+.beat-pips {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  min-height: 12px;
+}
+.beat-pip {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--line);
+  transition:
+    background 0.08s linear,
+    transform 0.08s linear;
+}
+.beat-pip.is-on {
+  background: var(--brand);
+  transform: scale(1.35);
+}
+.beat-counter {
+  font-size: 14px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+/* '박 → 기호' 유형의 자극 카드 */
+.beats-card {
+  font-size: 54px;
+  font-weight: 800;
+  color: var(--brand);
+  background: var(--surface);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 26px;
+  box-shadow: var(--shadow);
+}
+/* 보기 버튼이 그림일 때 — 세로 예산 확보를 위해 높이를 고정하고 오선 장식을 벗긴다 */
+.stage-rhythm .choice {
+  padding: 6px;
+}
+.choice-label svg.staff.compact {
+  height: 84px;
+  width: auto;
+  max-width: 100%;
+  border: 0;
+  padding: 0;
+  background: none;
+}
+/* 학습: 길이 사다리 */
+.ladder {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+.ladder-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto minmax(56px, 2fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+.ladder-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  min-height: var(--tap);
+}
+.ladder-btn svg.staff.compact {
+  height: 46px;
+  width: auto;
+  border: 0;
+  padding: 0;
+  background: none;
+}
+.ladder-name {
+  font-size: 14px;
+  font-weight: 700;
+}
+.ladder-beats {
+  font-size: 14px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.ladder-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--line);
+  overflow: hidden;
+}
+.ladder-bar {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--brand);
+}
+
 /* 모드 C: 조표 칩 */
 .chip-row {
   display: flex;
@@ -568,6 +688,10 @@ svg.staff {
   width: auto;
   padding: 10px 16px;
 }
+.review-item.wide {
+  width: 100%;
+  max-width: 340px;
+} /* 마디처럼 가로로 긴 복기 그림용 */
 .review-cap {
   font-size: 14px;
   font-weight: 700;
@@ -958,6 +1082,13 @@ svg.staff {
     animation: none;
     transition: none;
   }
+  /* 박 pip은 확대 모션만 끄고 색 전환은 유지 — 그 색이 '지금 몇 번째 박'이라는 상태 피드백이다 */
+  .beat-pip {
+    transition: none;
+  }
+  .beat-pip.is-on {
+    transform: none;
+  }
   /* 장식 모션만 끄고 표정·색 상태 피드백은 유지 (WCAG C39 취지, docs/05 §6.4) */
 }
 
@@ -985,6 +1116,9 @@ svg.staff {
   .feedback,
   .hint {
     grid-column: 1 / -1;
+  }
+  .choice-label svg.staff.compact {
+    height: 64px;
   }
 }
 
@@ -1020,6 +1154,20 @@ svg.staff {
   }
   .match-card {
     font-size: 56px;
+  }
+  .beats-card {
+    font-size: 44px;
+    padding: 10px 20px;
+  }
+  /* 320×568에서 프롬프트~보기 4개가 스크롤 없이 들어가도록 세로 예산을 맞춘 값 */
+  .choice-label svg.staff.compact {
+    height: 68px;
+  }
+  .stage-rhythm .choice {
+    padding: 4px;
+  }
+  .ladder-row {
+    gap: 6px;
   }
   .chip {
     font-size: 17px;

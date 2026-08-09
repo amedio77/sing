@@ -1,6 +1,6 @@
 // sw.js — 오프라인 지원 서비스워커. 네트워크 우선 + 캐시 폴백:
 // 온라인이면 항상 서버 최신(배포 즉시 반영, 낡은 코드 고착 없음), 오프라인이면 마지막 캐시로 동작.
-const CACHE = 'sing-v3'; // v3: TTS(speech.js) + 피아노 음색
+const CACHE = 'sing-v4'; // v4: 박자(음표 길이·쉼표) 모드
 const ASSETS = [
   './',
   './index.html',
@@ -21,6 +21,7 @@ const ASSETS = [
   './data/clefs.js',
   './data/keys.js',
   './data/chords.js',
+  './data/rhythm.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
 ];

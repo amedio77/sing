@@ -112,7 +112,9 @@ export function renderMenu(state) {
   window.onkeydown = null;
   const rewards = loadRewards(); // 모드별 최고 별점 배지용
   const cards = MODES.map((mode) => {
-    const icon = { 'clef-position': '𝄞 𝄢', 'note-matching': '도 = C', 'key-order': '♯ ♭', chord: '🎹' }[mode.id];
+    // ⚠️ 새 모드를 MODES에 추가하면 이 맵에도 반드시 넣을 것 — 누락 시 h()가 undefined kid를 건너뛰어
+    //    에러 없이 아이콘만 빈칸으로 통과한다(조용한 실패).
+    const icon = { 'clef-position': '𝄞 𝄢', 'note-matching': '도 = C', 'key-order': '♯ ♭', chord: '🎹', 'note-value': '♩ ♪' }[mode.id];
     const best = rewards.best[mode.id];
     const bestBadge =
       best && best.stars > 0
@@ -235,29 +237,41 @@ export function renderMode(state, mode) {
     q.choices.map((key, i) =>
       h(
         'button',
-        { class: 'choice', 'data-key': key, onclick: () => onChoose(mode, key, choices, feedback, hintBox, q) },
+        {
+          class: 'choice',
+          'data-key': key,
+          // 보기가 그림(labelNode)이면 버튼 자체에 이름 라벨 — 스크린리더 경로 보존
+          'aria-label': q.labelNode ? q.labelFor(key) : null,
+          onclick: () => onChoose(mode, key, choices, feedback, hintBox, q),
+        },
         h('span', { class: 'choice-num', 'aria-hidden': 'true' }, String(i + 1)),
-        h('span', { class: 'choice-label' }, q.labelFor(key))
+        h('span', { class: 'choice-label' }, q.labelNode ? q.labelNode(key) : q.labelFor(key))
       )
     )
   );
 
-  const listen = h('button', { class: 'btn ghost listen', onclick: () => q.playAudio() }, '🔊 ' + t('listen'));
+  // 답변 전에는 revealed=false — 정답을 소리로 누설하는 모드가 이 인자를 본다
+  const listen = h('button', { class: 'btn ghost listen', onclick: () => q.playAudio(false) }, '🔊 ' + t('listen'));
+
+  // ⚠️ 스테이지 클래스는 <main>에 붙어야 한다. 내부 .stage-visual div에 붙는 'stage-'+kind와 달리
+  //    .choices는 그 div의 형제라서, 보기 버튼 스타일은 여기 있는 클래스로만 잡힌다.
+  const stageMod = q.kind === 'chord' ? ' stage-chords' : q.kind === 'rhythm' ? ' stage-rhythm' : '';
 
   app().replaceChildren(
     appBar(state, { backAction: goHome, progress: { i: quiz.index, total: quiz.total } }),
-    h('main', { class: 'stage' + (q.kind === 'chord' ? ' stage-chords' : '') }, h('p', { class: 'prompt' }, q.prompt()), visual, listen, choices, feedback, hintBox)
+    h('main', { class: 'stage' + stageMod }, h('p', { class: 'prompt' }, q.prompt()), visual, listen, choices, feedback, hintBox)
   );
 
   // 키보드: 1~N 보기 선택 / H 힌트 / L 듣기
   window.onkeydown = (e) => {
+    if (e.repeat) return; // 키 반복(길게 누르기)으로 예약 재생이 중첩되는 것 차단
     if (e.key >= '1' && e.key <= '9') {
       const btn = choices.children[+e.key - 1];
       if (btn && !btn.disabled) btn.click();
     } else if (e.key.toLowerCase() === 'h') {
       hintBox.open = !hintBox.open;
     } else if (e.key.toLowerCase() === 'l') {
-      q.playAudio();
+      q.playAudio(false);
     }
   };
 }
@@ -296,12 +310,14 @@ function onChoose(mode, key, gridEl, feedbackEl, hintBox, q) {
   if (res.ok) {
     showFeedback(feedbackEl, true, '✓ ' + t('correct'));
     playCorrect(); // 구별되는 상승 차임(성공 효과음)
-    setTimeout(() => stillHere() && q.playAudio(), 300); // 그 뒤 실제 음(학습)
+    // 리듬 문항(audioMs 보유)은 정답 시 재생을 생략한다 — 850ms 대기를 건드리지 않기 위함.
+    // 쉼표까지 전부 재생하면 easy의 절반이 2초 이상이라 정답 흐름이 무너진다.
+    if (!q.audioMs) setTimeout(() => stillHere() && q.playAudio(true), 300); // 그 뒤 실제 음(학습)
   } else {
     showFeedback(feedbackEl, false, `✗ ${t('wrong')} — ${q.labelFor(res.correct)}`);
     hintBox.open = true;
     playWrong(); // 구별되는 하강 버저(실패 효과음)
-    setTimeout(() => stillHere() && q.playAudio(), 500); // 그 뒤 정답 음 각인
+    setTimeout(() => stillHere() && q.playAudio(true), 500); // 그 뒤 정답 음 각인
   }
 
   setTimeout(
@@ -311,7 +327,8 @@ function onChoose(mode, key, gridEl, feedbackEl, hintBox, q) {
       if (res.done) location.hash = '#/result';
       else setState({}); // 다음 문제 렌더
     },
-    res.ok ? 850 : 1700
+    // 오답만 재생 길이를 반영 (기존 4모드는 audioMs가 없어 Math.max(1700, 550) = 1700 그대로)
+    res.ok ? 850 : Math.max(1700, (q.audioMs || 0) + 550)
   );
 }
 
@@ -349,7 +366,17 @@ export function renderResult(state) {
 
   const review = h('div', { class: 'review' });
   quiz.wrongLog.forEach((q) => {
-    if (q.kind === 'staff' && q.review) {
+    // 그림으로 복기해야 하는 문항(리듬 등)은 자기 SVG를 직접 준다. cap이 없으면 정답 라벨 폴백.
+    if (q.review && q.review.svg) {
+      review.appendChild(
+        h(
+          'div',
+          { class: 'review-item' + (q.review.wide ? ' wide' : '') },
+          q.review.svg(),
+          h('div', { class: 'review-cap' }, q.review.cap || q.labelFor(q.answer))
+        )
+      );
+    } else if (q.kind === 'staff' && q.review) {
       review.appendChild(
         h(
           'div',

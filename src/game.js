@@ -30,13 +30,16 @@ export function getState() {
 
 export function setState(patch) {
   Object.assign(state, patch);
+  if ('lang' in patch) document.documentElement.lang = state.lang; // TTS·스크린리더 보이스
   if (PERSIST_KEYS.some((k) => k in patch)) saveSettings(state); // 설정 키 변경 시 영속화
   rerender(state); // 상태 갱신 후 현재 뷰 1회 재렌더
 }
 
 // 모든 모드가 공유하는 퀴즈 엔진. 모드는 문제 생성 함수(generate)만 제공.
 // question 규약: { key:str(문제 정체성), prompt():str, render(el), choices:[key], answer:key,
-//                  labelFor(key):str, playAudio(), hint:str, review?:obj }
+//                  labelFor(key):str, playAudio(revealed), hint:str, review?:obj }
+// 선택 필드(있으면 ui.js가 소비, 없으면 기존 경로): labelNode?(key):Element · audioMs?:number
+//                  · review.svg?():Element · review.cap?:str · review.wide?:bool
 export function createQuiz({ generate, total = 10 }) {
   // 세션 내 무중복 출제(확률적 회피): key 기준 used-set 재시도 →
   // 풀 < 문항 수로 고갈되면 직전 문항과의 연속 중복만 회피 → 최종 수용(무한루프 차단).

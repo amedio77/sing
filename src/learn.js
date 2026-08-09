@@ -6,11 +6,12 @@
 import { getState, startQuiz } from './game.js';
 import { h, segmented, appBar } from './ui.js';
 import { t, noteLabel, letterLabel } from './i18n.js';
-import { createStaffSVG, createChordSVG, createKeySigSVG, noteToY } from './staff.js';
-import { playNote, playChord, playSequence } from './audio.js';
+import { createStaffSVG, createChordSVG, createKeySigSVG, createSymbolSVG, beatPips, syncPlayback, noteToY } from './staff.js';
+import { playNote, playChord, playSequence, rhythmCue, stopAll, audioClock } from './audio.js';
 import { speakNote } from './speech.js';
 import { CLEFS } from '../data/clefs.js';
 import { LETTERS, SOLFEGE, makeNote } from '../data/notes.js';
+import { NOTE_VALUES, DOTTABLE, makeSymbol, beatsLabel } from '../data/rhythm.js';
 import {
   SHARP_ORDER,
   FLAT_ORDER,
@@ -73,11 +74,14 @@ export function renderLearn(state, mode) {
   }
 
   const main = h('main', { class: 'learn' }, h('h1', { class: 'learn-title' }, '📖 ' + t('learn') + ' · ' + t(mode.name)));
+  // ⚠️ MODES에 모드를 추가하면 여기에도 반드시 등록할 것 — 가드가 없어 누락 시 즉시 TypeError로
+  //    학습 화면이 백지가 된다.
   const builders = {
     'clef-position': learnClef,
     'note-matching': learnMatching,
     'key-order': learnKeyOrder,
     chord: learnChord,
+    'note-value': learnNoteValue,
   };
   builders[mode.id](state, main);
 
@@ -355,6 +359,124 @@ function learnKeyOrder(state, main) {
         { class: 'hint' },
         h('summary', {}, '⚡ ' + t('quickKeyRule')),
         h('div', { class: 'hint-body' }, KEY_RULES.map((r) => h('p', {}, '· ' + (lang() === 'ko' ? r.ko : r.en))))
+      )
+    );
+  }
+  render();
+}
+
+// ── 모드 E: 길이 사다리 ───────────────────────────────
+// 삼중 일치의 박자 버전 = 「모양 = 이름 = 지속시간」.
+// 지속시간은 그려질 수 없으므로 소리로 경험시키되, 그 시간이 눈으로도 흐르게 한다(박 pip·카운터).
+// 그래야 사운드 Off·iOS 무음 스위치·난청에서도 학습이 성립한다.
+function learnNoteValue(state, main) {
+  let bpm = 60; // ♩=60은 1박이 정확히 1초 — 초시계 산수가 통한다
+  let dotted = false;
+  let stopSync = () => {};
+  const sec = h('div', { class: 'learn-sec' });
+  main.appendChild(sec);
+
+  const symName = (s) => (lang() === 'ko' ? s.ko : s.en);
+  const stage = h('div', { class: 'rhythm-box learn-staff' });
+  const label = h('p', { class: 'learn-note-label', 'aria-live': 'polite' }, t('tempoRefHint'));
+
+  // 클릭 = 모양(확대 오선) + 이름(라벨) + 지속시간(소리 · 박 pip)을 한 제스처에
+  function play(sym) {
+    stopSync();
+    stopAll(); // 연타 시 예약 중첩 차단
+    const nBeats = Math.max(1, Math.ceil(sym.beats));
+    const counter = h('div', { class: 'beat-counter' }, `0 / ${nBeats}`);
+    stage.replaceChildren(
+      createSymbolSVG(sym, CLEFS.treble, { highlight: true, label: t('symbolImageLabel') }),
+      beatPips(nBeats),
+      counter
+    );
+    label.textContent = `${symName(sym)} · ${beatsLabel(sym.beats, lang())}`;
+    const cue = rhythmCue(sym, bpm);
+    stopSync = syncPlayback(stage, { ...cue, clock: audioClock, counterEl: counter });
+  }
+
+  function render() {
+    const rows = NOTE_VALUES.map((v) => {
+      const note = makeSymbol(v.id, { dotted: dotted && DOTTABLE.includes(v.id) });
+      const rest = makeSymbol(v.id, { rest: true });
+      const btn = (sym) =>
+        h('button', { class: 'ladder-btn', 'aria-label': symName(sym), onclick: () => play(sym) }, createSymbolSVG(sym, CLEFS.treble, { compact: true }));
+      return h(
+        'div',
+        { class: 'ladder-row' },
+        btn(note),
+        h('span', { class: 'ladder-name' }, symName(note)),
+        h('span', { class: 'ladder-beats' }, beatsLabel(note.beats, lang())),
+        h('span', { class: 'ladder-track' }, h('span', { class: 'ladder-bar', style: `width:${(note.beats / 4) * 100}%` })),
+        btn(rest)
+      );
+    });
+
+    sec.replaceChildren(
+      h(
+        'div',
+        { class: 'learn-seg-row' },
+        h('span', { class: 'learn-seg-label' }, t('tempoRef')),
+        segmented(
+          [
+            { value: 60, label: '♩ = 60' },
+            { value: 100, label: '♩ = 100' }, // 퀴즈와 같은 템포 — 전이 확인용
+          ],
+          bpm,
+          (v) => {
+            bpm = v;
+            render();
+          },
+          t('tempoRef')
+        ),
+        h('span', { class: 'learn-seg-label' }, t('dotRule')),
+        segmented(
+          [
+            { value: false, label: 'Off' },
+            { value: true, label: '· On' },
+          ],
+          dotted,
+          (v) => {
+            dotted = v;
+            render();
+          },
+          t('dotRule')
+        )
+      ),
+      stage,
+      label,
+      h('div', { class: 'ladder' }, rows),
+      h(
+        'div',
+        { class: 'learn-card' },
+        h('div', { class: 'learn-card-title' }, '💡 ' + t('durationLadder')),
+        h('p', {}, t('halfEachStep')),
+        h('p', {}, t('silenceCounts')),
+        h('p', {}, t('dotRuleDesc'))
+      ),
+      h(
+        'details',
+        { class: 'hint' },
+        h('summary', {}, '🔲 ' + t('wholeVsHalfRest')),
+        h(
+          'div',
+          { class: 'hint-body' },
+          h(
+            'div',
+            { class: 'learn-row' },
+            createSymbolSVG(makeSymbol('w', { rest: true }), CLEFS.treble, { compact: true }),
+            createSymbolSVG(makeSymbol('h', { rest: true }), CLEFS.treble, { compact: true })
+          ),
+          h('p', {}, t('wholeVsHalfRestDesc')),
+          h('p', {}, t('wholeRestMeasure'))
+        )
+      ),
+      h(
+        'details',
+        { class: 'hint' },
+        h('summary', {}, '🎼 ' + t('beamNote')),
+        h('div', { class: 'hint-body' }, h('p', {}, t('beamNoteDesc')), h('p', {}, t('stemNote')))
       )
     );
   }

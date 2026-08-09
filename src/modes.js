@@ -1,16 +1,24 @@
-// src/modes.js — 4개 학습 모드 = 평범한 배열. 레지스트리·전략 패턴 없음.
+// src/modes.js — 5개 학습 모드 = 평범한 배열. 레지스트리·전략 패턴 없음.
 // 모드 규약: { id, name(key), generate() → question }
 // question: { key:str, prompt():str, render(el), choices:[key], answer:key,
-//             labelFor(key):str, playAudio(), hint:str, kind, review }
+//             labelFor(key):str, playAudio(revealed), hint:str, kind, review }
+//   labelFor(key)  ⚠️ 반드시 String — ui.js가 템플릿 리터럴·문자열 연결에 그대로 넣는다
+//   playAudio(revealed) 답변 전(false)/후(true). 인자를 무시하는 기존 모드는 무영향
+// 선택 필드: labelNode?(key):Element  보기 버튼 내용을 그림으로 (없으면 labelFor 텍스트)
+//            audioMs?:number          재생 길이. 오답 자동진행 대기의 하한이 된다
+//            review.svg?():Element    결과 화면 오답 복기용 그림 (+ review.cap / review.wide)
 // key = 문제 정체성(그 모드가 평가하는 학습 항목이 같으면 같은 key).
 //       createQuiz(game.js)가 세션 내 무중복 판정에 사용. 누락 시 해당 문항만 dedup 제외.
+// ⚠️ kind 를 'staff'로 재사용하지 말 것 — ui.js 결과 화면이 review.clef를 createStaffSVG에 넘겨
+//    TypeError를 던지고, 그 throw가 replaceChildren 이전이라 화면이 이전 문항에 멈춘다.
 
 import { CLEFS } from '../data/clefs.js';
 import { makeNote, LETTERS, SOLFEGE } from '../data/notes.js';
 import { SHARP_ORDER, FLAT_ORDER } from '../data/keys.js';
 import { makeChord } from '../data/chords.js';
-import { createStaffSVG, createChordSVG, createKeySigSVG } from './staff.js';
-import { playNote, playChord } from './audio.js';
+import { symbolPool, VISUAL_PAIR, beatsLabel, UNITS_PER_BEAT, HINT_KO, HINT_EN } from '../data/rhythm.js';
+import { createStaffSVG, createChordSVG, createKeySigSVG, createSymbolSVG, beatPips, syncPlayback } from './staff.js';
+import { playNote, playChord, rhythmCue, cueMs, stopAll, audioClock } from './audio.js';
 import { getState } from './game.js';
 import { t, letterLabel, noteLabel } from './i18n.js';
 
@@ -225,4 +233,145 @@ const chord = {
   },
 };
 
-export const MODES = [clefPosition, noteMatching, keyOrder, chord];
+// ── 모드 E: 음표와 쉼표 (길이) ─────────────────────────
+// 삼중 일치의 박자 버전 = 「모양 = 이름 = 지속시간」.
+// 음높이는 학습 변수가 아니므로 상수(오선 3번째 줄)로 고정하고, 변하는 것은 '울리는 시간'이다.
+const RHY_TYPES = ['glyph2beats', 'beats2glyph', 'pair'];
+const symName = (s) => (getState().lang === 'ko' ? s.ko : s.en);
+const unitsKey = (u) => 'u' + u;
+
+// units 거리가 가까운 순 n개. 인접 오답은 흔한 오개념을 자동으로 포착한다
+// (점 무시 / 머리 채움 혼동 / 꼬리 개수 혼동). n+1 후보 중 셔플해 결정성을 완화한다.
+function nearest(cands, targetUnits, n) {
+  const sorted = cands.slice().sort((a, b) => Math.abs(a.units - targetUnits) - Math.abs(b.units - targetUnits));
+  return shuffle(sorted.slice(0, n + 1)).slice(0, n);
+}
+
+// 온쉼표(4박)↔2분쉼표(2박)는 사각형이 줄 위냐 아래냐만 다른 최악의 혼동쌍인데
+// normal에서는 사이에 3박이 끼어 인접에서 밀린다 → 강제 선삽입 (distractor 규칙의 유일한 예외)
+function forceVisualPair(target, distract, cands) {
+  const id = VISUAL_PAIR[target.id];
+  if (!id || distract.some((s) => s.id === id)) return distract;
+  const forced = cands.find((s) => s.id === id);
+  return forced ? [forced, ...distract.slice(0, -1)] : distract;
+}
+
+// 자극·보기 공통: 오선 위 기호 하나
+const symSVG = (sym, opts) => createSymbolSVG(sym, CLEFS.treble, opts);
+
+const noteValue = {
+  id: 'note-value',
+  name: 'noteValue',
+  generate() {
+    const st = getState();
+    const pool = symbolPool(st.difficulty); // easy 8 / normal 13
+    const type = pick(RHY_TYPES);
+
+    // 유형별로 (자극 노드, 보기, 정답, 라벨)만 다르고 재생·복기 구조는 공유한다
+    let cueSym; // 소리로 들려줄 기호
+    let ansSym; // 정답 기호 (복기용)
+    let makeStimulus; // () => Element
+    let choices;
+    let answer;
+    let labelFor;
+    let labelNode = null;
+    let promptText;
+    let cap;
+
+    if (type === 'glyph2beats') {
+      const target = pick(pool);
+      cueSym = ansSym = target;
+      // 보기는 '박 값' — 같은 값이 두 버튼에 나오지 않도록 units 집합에서 중복 제거 후 인접 추출
+      const others = [...new Set(pool.map((s) => s.units))]
+        .filter((u) => u !== target.units)
+        .map((u) => ({ units: u }));
+      answer = unitsKey(target.units);
+      choices = shuffle([answer, ...nearest(others, target.units, 3).map((o) => unitsKey(o.units))]);
+      labelFor = (k) => beatsLabel(+k.slice(1) / UNITS_PER_BEAT, getState().lang);
+      promptText = t('askBeats');
+      makeStimulus = () => symSVG(target, { label: t('symbolImageLabel') });
+      cap = `${symName(target)} = ${beatsLabel(target.beats, st.lang)}`;
+    } else if (type === 'beats2glyph') {
+      // ⚠️ 계열 한정 필수 — 음표와 쉼표는 같은 박 값을 1:1로 공유하므로(♩ 1박 = 𝄽 1박)
+      //    계열을 섞으면 "1박짜리는?"에 정답이 2개가 된다. 엔진은 단일 정답만 인정한다.
+      const wantRest = Math.random() < 0.5;
+      const series = pool.filter((s) => s.rest === wantRest);
+      const target = pick(series);
+      cueSym = ansSym = target;
+      const cands = series.filter((s) => s.units !== target.units); // 동일 길이 배제(정답 2개 방지)
+      const distract = forceVisualPair(target, nearest(cands, target.units, 3), cands);
+      const byId = Object.fromEntries([target, ...distract].map((s) => [s.id, s]));
+      answer = target.id;
+      choices = shuffle(Object.keys(byId));
+      labelFor = (k) => symName(byId[k]);
+      labelNode = (k) => symSVG(byId[k], { compact: true });
+      promptText = t(wantRest ? 'askBeatsRest' : 'askBeatsNote').replace('{n}', beatsLabel(target.beats, st.lang));
+      makeStimulus = () => {
+        const card = document.createElement('div');
+        card.className = 'beats-card';
+        card.textContent = beatsLabel(target.beats, st.lang);
+        return card;
+      };
+      cap = `${beatsLabel(target.beats, st.lang)} = ${symName(target)}`;
+    } else {
+      // pair — 음표↔쉼표 짝. 점음표는 대응 쉼표가 범위 밖이라 제외.
+      const plain = pool.filter((s) => !s.dotted);
+      const src = pick(plain);
+      const series = plain.filter((s) => s.rest !== src.rest);
+      const target = series.find((s) => s.units === src.units);
+      cueSym = src; // 자극(보이는 것)을 들려준다 — 정답 누설이 아니라 자극의 소리 축
+      ansSym = target;
+      const cands = series.filter((s) => s.units !== target.units);
+      const distract = forceVisualPair(target, nearest(cands, target.units, 3), cands);
+      const byId = Object.fromEntries([target, ...distract].map((s) => [s.id, s]));
+      answer = target.id;
+      choices = shuffle(Object.keys(byId));
+      labelFor = (k) => symName(byId[k]);
+      labelNode = (k) => symSVG(byId[k], { compact: true });
+      promptText = t(src.rest ? 'askPairNote' : 'askPairRest');
+      makeStimulus = () => symSVG(src, { label: t('symbolImageLabel') });
+      cap = `${symName(src)} = ${symName(target)}`;
+    }
+
+    const nBeats = Math.max(1, Math.ceil(cueSym.beats));
+    let root = null; // render가 만든 컨테이너 — playAudio가 시각 동기화에 사용
+    let counter = null;
+    let stopSync = () => {};
+
+    return {
+      kind: 'rhythm', // ⚠️ 'staff' 재사용 금지 (결과 화면이 review.clef를 요구한다)
+      key: `${type}:${ansSym.id}`, // 평가 방향 + 평가 대상 기호
+      prompt: () => promptText,
+      render: (c) => {
+        const box = document.createElement('div');
+        box.className = 'rhythm-box';
+        box.appendChild(makeStimulus());
+        box.appendChild(beatPips(nBeats)); // 소리 없이도 박이 흐르는 시각 채널
+        counter = document.createElement('div');
+        counter.className = 'beat-counter';
+        counter.textContent = `0 / ${nBeats}`;
+        box.appendChild(counter);
+        root = box;
+        c.appendChild(box);
+      },
+      choices,
+      answer,
+      labelFor,
+      labelNode,
+      // 모드 E는 자극이 이미 보이거나 프롬프트에 적혀 있으므로 재생이 정답을 더 누설하지 않는다.
+      // 오히려 이 소리가 시각 비의존 1급 경로다 → revealed 를 보지 않는다.
+      playAudio: () => {
+        stopAll(); // 연타 시 예약 시퀀스 중첩 차단
+        stopSync();
+        const cue = rhythmCue(cueSym);
+        stopSync = syncPlayback(root, { ...cue, clock: audioClock, counterEl: counter });
+      },
+      audioMs: cueMs(cueSym),
+      hint: st.lang === 'ko' ? HINT_KO : HINT_EN,
+      // 복기는 좁은 카드(150px) 안이라 크롭 뷰박스로 — 오선 3·4번 줄은 남으므로 쉼표 위치 변별 유지
+      review: { svg: () => symSVG(ansSym, { compact: true, highlight: true, label: t('symbolImageLabel') }), cap },
+    };
+  },
+};
+
+export const MODES = [clefPosition, noteMatching, keyOrder, chord, noteValue];
