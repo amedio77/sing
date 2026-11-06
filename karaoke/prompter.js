@@ -202,10 +202,14 @@ function paint(force = false) {
 }
 
 function applyActive(i) {
-  const win = lineWindow();
+  const { before, after } = lineWindow();
   for (let k = 0; k < lineEls.length; k++) {
-    const d = Math.abs(k - i);
-    const cls = k === i ? 'line active' : d <= win ? 'line near' : 'line';
+    const d = k - i; // 부호를 살린다 — 다음 줄과 지나간 줄은 쓸모가 다르다
+    let cls = 'line';
+    if (d === 0) cls = 'line active';
+    else if (d === 1) cls = 'line next'; // 미리 읽고 준비하는 줄
+    else if (d > 1 && d <= after) cls = 'line soon';
+    else if (d < 0 && -d <= before) cls = 'line past';
     if (lineEls[k].className !== cls) lineEls[k].className = cls;
   }
   // 현재 줄을 무대 중앙에 고정. 글꼴 크기가 바뀐 뒤 측정해야 하므로 class 적용 후에 읽는다.
@@ -216,8 +220,16 @@ function applyActive(i) {
   $('#rail').style.setProperty('--shift', `${Math.round(shift)}px`);
 }
 
-// 폰 세로 = 이전1·현재·다음1 / 태블릿·노트북 = 이전2·현재·다음2 (§6.2)
-const lineWindow = () => prefs.lineWindow ?? (window.matchMedia('(min-width: 768px)').matches ? 2 : 1);
+// 앞쪽을 더 넓게 본다 — 부를 때 필요한 건 다음 줄이지 지나간 줄이 아니다.
+// 폰 세로 = 이전1·현재·다음2 / 태블릿·노트북 = 이전2·현재·다음3 (§6.2)
+function lineWindow() {
+  const p = prefs.lineWindow;
+  if (typeof p === 'number') return { before: p, after: p + 1 }; // 옛 설정값(숫자) 호환
+  if (p && typeof p === 'object') return { before: p.before ?? 1, after: p.after ?? 2 };
+  return window.matchMedia('(min-width: 768px)').matches
+    ? { before: 2, after: 3 }
+    : { before: 1, after: 2 };
+}
 
 function startLoop() {
   if (raf) return;
