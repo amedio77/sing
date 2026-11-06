@@ -42,9 +42,12 @@
 
       <div class="meta" id="meta"></div>
 
-      <section class="stage" aria-label="가사">
-        <div class="rail" id="rail"></div>
-        <div class="countin" id="countin"><b id="countin-num">0</b><span>첫 소절까지</span></div>
+      <!-- 카운트인은 stage 밖에 둔다 — stage 의 페이드 마스크에 같이 걸리면 배지가 흐려진다 -->
+      <section class="stage-wrap">
+        <div class="stage" aria-label="가사"><div class="rail" id="rail"></div></div>
+        <div class="countin" id="countin">
+          <span>첫 소절까지</span><b id="countin-num">0</b><span>초</span>
+        </div>
       </section>
 
       <div class="controls">

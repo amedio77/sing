@@ -23,6 +23,12 @@
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 6px 20px rgba(0, 0, 0, 0.04);
   --tap: 48px;
   --font-scale: 1;
+  --content-max: 920px;
+  --gutter: 16px;
+  /* 본문(.wrap)의 안쪽 좌우 경계.
+     앱바·곡 탭·탭바는 배경을 전체 폭으로 깔아야 해서 .wrap 처럼 가운데 정렬을 못 쓴다.
+     대신 같은 값을 padding 으로 줘서 본문과 같은 세로선에 맞춘다. */
+  --edge: calc(max(0px, (100% - var(--content-max)) / 2) + var(--gutter));
 }
 
 @media (prefers-color-scheme: dark) {
@@ -108,7 +114,7 @@ button {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 8px var(--edge);
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line);
@@ -142,9 +148,9 @@ button {
 }
 
 .wrap {
-  max-width: 920px;
+  max-width: var(--content-max);
   margin: 0 auto;
-  padding: 0 16px 48px; /* 폰 세로 16px 사이드 거터 */
+  padding: 0 var(--gutter) 48px;
 }
 
 /* ── 곡 탭 ────────────────────────────────────────── */
@@ -153,7 +159,7 @@ button {
   gap: 6px;
   overflow-x: auto;
   scrollbar-width: none;
-  padding: 10px 0;
+  padding: 10px var(--edge);
   position: sticky;
   top: 57px;
   z-index: 15;
@@ -412,6 +418,12 @@ button {
   border: 0;
 }
 
+/* stage 에는 가사 페이드 마스크가 걸려 있다. 마스크를 받으면 안 되는 UI(카운트인)는
+   이 래퍼를 기준으로 stage 바깥에 띄운다. */
+.stage-wrap {
+  position: relative;
+  margin: 6px 0 10px;
+}
 .stage {
   position: relative;
   overflow: hidden;
@@ -420,7 +432,6 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 6px 0 10px;
   -webkit-mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent);
   mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent);
 }
@@ -501,27 +512,36 @@ button {
   width: calc(var(--p, 0) * 100%);
   background: var(--brand);
 }
+/* 카운트인 — 무대 중앙에 깔면 첫 소절 가사와 겹쳐 둘 다 안 읽힌다.
+   위쪽에 작은 배지로 띄워, 세는 동안에도 부를 가사를 미리 읽을 수 있게 한다. */
 .countin {
   position: absolute;
-  inset: 0;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
   display: none;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  align-items: baseline;
   gap: 6px;
   pointer-events: none;
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
 }
 .countin.on {
   display: flex;
 }
 .countin b {
-  font-size: clamp(3rem, 16vw, 6rem);
+  font-size: 1.5rem;
   line-height: 1;
   color: var(--brand);
+  font-variant-numeric: tabular-nums;
 }
 .countin span {
   color: var(--ink-soft);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 .controls {
@@ -635,7 +655,7 @@ button {
   bottom: 0;
   display: flex;
   gap: 8px;
-  padding: 10px 0 12px;
+  padding: 10px var(--edge) 12px;
   background: color-mix(in srgb, var(--bg) 92%, transparent);
   backdrop-filter: blur(8px);
   border-top: 1px solid var(--line);
