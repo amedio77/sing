@@ -584,6 +584,76 @@ button {
   font-size: 0.8rem;
 }
 
+/* ── 집중 모드 (프롬프터 전용) ─────────────────────
+   브라우저 전체화면만으로는 앱 자체 상단 UI가 남아 가사 영역이 안 늘어난다.
+   상단을 전부 걷어내고 가사 + 최소 컨트롤만 남긴다. 복귀는 ✕ 버튼 / Esc / F. */
+.focus-exit {
+  display: none;
+}
+body.focus .focus-exit {
+  display: inline-flex;
+  align-items: center;
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top));
+  right: max(10px, env(safe-area-inset-right));
+  z-index: 60;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  backdrop-filter: blur(6px);
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  opacity: 0.45;
+  transition: opacity 0.2s;
+}
+body.focus .focus-exit:hover,
+body.focus .focus-exit:focus-visible {
+  opacity: 1;
+  color: var(--ink);
+}
+
+body.focus .appbar,
+body.focus .songtabs,
+body.focus .notice,
+body.focus .urlrow,
+body.focus .meta,
+body.focus .hint {
+  display: none;
+}
+
+/* 음원은 계속 흘러야 한다 — display:none 으로 숨기면 재생이 끊긴다.
+   크기는 그대로 둔 채 화면 밖으로 밀어 둔다. */
+body.focus .player-wrap:not(.hidden) {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 320px;
+  height: 180px;
+  margin: 0;
+}
+
+body.focus .wrap {
+  max-width: none;
+  padding: 0;
+}
+body.focus .stage-wrap {
+  margin: 0;
+}
+body.focus .stage {
+  height: calc(100dvh - 92px); /* 컨트롤 바 높이만 남긴다 */
+}
+body.focus .controls {
+  padding: 8px max(var(--gutter), env(safe-area-inset-left))
+    calc(8px + env(safe-area-inset-bottom)) max(var(--gutter), env(safe-area-inset-right));
+}
+/* 오프셋은 집중 모드에서도 남긴다 — 부르는 중 가사가 밀릴 때 폰에는
+   키보드가 없어 이 버튼이 유일한 보정 수단이다. 라벨만 줄인다. */
+body.focus .controls .offset .ctrl-label {
+  display: none;
+}
+
 /* ── 싱크 도구 (§6.3) ────────────────────────────── */
 .urlrow {
   display: flex;

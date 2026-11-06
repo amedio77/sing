@@ -344,10 +344,40 @@ $('#player-toggle').addEventListener('click', () => {
   if (!loadVideoId(song.id)) return notice('먼저 YouTube 주소를 저장하세요.');
   w.classList.toggle('hidden');
 });
-$('#fs').addEventListener('click', () => {
-  if (document.fullscreenElement) document.exitFullscreen();
-  else document.documentElement.requestFullscreen?.().catch(() => notice('전체화면을 쓸 수 없습니다.'));
+// ── 집중 모드 ────────────────────────────────────────
+// 브라우저 전체화면만으로는 앱 상단 UI가 남아 가사 영역이 안 늘어난다.
+// 레이아웃(집중 모드)과 브라우저 전체화면을 함께 켜되, 전체화면이 거부돼도
+// 집중 모드는 그대로 동작하게 둘을 분리해 둔다.
+let focusMode = false;
+
+function applyFocus(on) {
+  focusMode = on;
+  document.body.classList.toggle('focus', on);
+  const btn = $('#fs');
+  btn.setAttribute('aria-pressed', String(on));
+  btn.title = on ? '집중 모드 끄기' : '집중 모드 (가사만 크게)';
+  // 무대 높이가 바뀌므로 중앙 정렬을 다시 계산한다
+  lastIndex = -2;
+  requestAnimationFrame(() => paint(true));
+}
+
+async function toggleFocus(on = !focusMode) {
+  applyFocus(on);
+  try {
+    if (on && !document.fullscreenElement) await document.documentElement.requestFullscreen();
+    else if (!on && document.fullscreenElement) await document.exitFullscreen();
+  } catch {
+    // 전체화면이 거부돼도(iOS Safari 등) 집중 모드 레이아웃은 유효하다
+  }
+}
+
+// Esc·시스템 제스처로 전체화면이 풀리면 집중 모드도 같이 해제한다
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement && focusMode) applyFocus(false);
 });
+
+$('#fs').addEventListener('click', () => toggleFocus());
+$('#focus-exit').addEventListener('click', () => toggleFocus(false));
 
 window.addEventListener('keydown', (e) => {
   if (e.target.matches('input, textarea')) return;
@@ -370,7 +400,13 @@ window.addEventListener('keydown', (e) => {
       break;
     case 'f':
     case 'F':
-      $('#fs').click();
+      toggleFocus();
+      break;
+    case 'Escape':
+      // 전체화면이 켜져 있으면 브라우저가 먼저 처리하고 fullscreenchange 로 해제된다.
+      // 전체화면 없이 집중 모드만 쓰는 경우를 위해 여기서도 받는다.
+      if (!focusMode) return;
+      toggleFocus(false);
       break;
     case 's':
     case 'S':
