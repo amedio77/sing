@@ -251,24 +251,6 @@ function updatePlayBtn() {
   $('#play').textContent = playing ? '❙❙ 일시정지' : '▶ 재생';
 }
 
-// 타이머 모드에서 첫 소절까지 기다리는 최대 시간(초).
-// songs.js 의 intro 는 "실제 음원에서 노래가 시작되는 시점"이라 줄이면 안 된다
-// (YouTube 를 붙이면 가사가 그만큼 먼저 떠버린다). 대신 음원이 없는 타이머 모드에서만
-// 재생 시작 지점을 첫 소절 가까이로 당긴다.
-const INTRO_LEAD = 5;
-
-function trimIntroForTimer() {
-  if (clock?.kind !== 'timer') return;
-  const first = timeline.lines[0];
-  if (first == null) return;
-  const t = clock.now() + timeline.offset;
-  // 처음부터 재생할 때만 당긴다. 중간에서 이어 재생하는 경우는 건드리지 않는다.
-  if (t < 0.5 && first > INTRO_LEAD) {
-    clock.seek(first - timeline.offset - INTRO_LEAD);
-    lastIndex = -2;
-  }
-}
-
 function beginPlayback() {
   clock.play();
   startLoop();
@@ -284,7 +266,7 @@ async function togglePlay() {
     releaseWake();
     setTimeout(updatePlayBtn, 120); // YouTube 는 상태 반영이 한 틱 늦는다
   } else {
-    trimIntroForTimer();
+    // 인트로는 건드리지 않는다 — 건너뛰기는 '바로 시작'(skipIntro)의 역할이다.
     beginPlayback();
   }
 }
