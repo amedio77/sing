@@ -1,0 +1,670 @@
+/* karaoke/karaoke.css — 가사 암기 / 프롬프터 / 싱크 공용 스타일
+   설계 문서 docs/11-karaoke-design.md §6.5
+   토큰 이름은 기존 styles.css 와 일부러 동일하게 맞춰 두 앱의 톤이 어긋나지 않게 한다. */
+
+:root {
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --surface-2: #f0f2f6;
+  --ink: #1e2430;
+  --ink-soft: #5b6472;
+  --ink-dim: #8b94a3;
+  --line: #c7cdd6;
+  --brand: #2f6bff;
+  --brand-050: #e9f0ff;
+  --chorus: #a855f7;
+  --chorus-050: #f5ecff;
+  --ok: #12855a;
+  --ok-050: #e3f5ec;
+  --bad: #c43b2e;
+  --warn: #b26a00;
+  --warn-050: #fff6e5;
+  --radius: 14px;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 6px 20px rgba(0, 0, 0, 0.04);
+  --tap: 48px;
+  --font-scale: 1;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12151c;
+    --surface: #1a1f29;
+    --surface-2: #222835;
+    --ink: #edeff3;
+    --ink-soft: #a2aab8;
+    --ink-dim: #6f7889;
+    --line: #39414f;
+    --brand: #5b8cff;
+    --brand-050: #1e2a44;
+    --chorus: #c084fc;
+    --chorus-050: #2b1f3d;
+    --ok: #3fbe86;
+    --ok-050: #12352a;
+    --bad: #f0796b;
+    --warn: #e0a64a;
+    --warn-050: #3a2e18;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.25);
+  }
+}
+
+/* 프롬프터는 다크를 강제한다 — 노래방·무대 조명에서 흰 화면은 눈이 부시다 */
+body.prompter {
+  --bg: #0a0c11;
+  --surface: #14181f;
+  --surface-2: #1d222c;
+  --ink: #f4f6fa;
+  --ink-soft: #9aa3b2;
+  --ink-dim: #5d6675;
+  --line: #2c3340;
+  --brand: #5b8cff;
+  --brand-050: #1a2640;
+  --chorus: #c084fc;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overflow-x: hidden;
+}
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+button {
+  cursor: pointer;
+}
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* 한국어 가사 줄바꿈 품질 */
+.lyric,
+.line-text {
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  text-wrap: balance;
+}
+
+/* ── 앱바 ─────────────────────────────────────────── */
+.appbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.appbar h1 {
+  flex: 1;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 650;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.iconbtn {
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 0.9rem;
+  text-decoration: none;
+  color: inherit;
+}
+.iconbtn:hover {
+  border-color: var(--brand);
+}
+
+.wrap {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 0 16px 48px; /* 폰 세로 16px 사이드 거터 */
+}
+
+/* ── 곡 탭 ────────────────────────────────────────── */
+.songtabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 10px 0;
+  position: sticky;
+  top: 57px;
+  z-index: 15;
+  background: var(--bg);
+}
+.songtabs::-webkit-scrollbar {
+  display: none;
+}
+.songtab {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  white-space: nowrap;
+  font-size: 0.92rem;
+}
+.songtab[aria-selected="true"] {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+  font-weight: 650;
+}
+
+/* ── 공용 조각 ────────────────────────────────────── */
+.meta {
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 14px;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  text-decoration: none;
+}
+.badge.warn {
+  background: var(--warn-050);
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 35%, transparent);
+}
+.badge.ok {
+  background: var(--ok-050);
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 35%, transparent);
+}
+.notice {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--warn-050);
+  color: var(--warn);
+  border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent);
+  font-size: 0.88rem;
+}
+.notice.bad {
+  background: color-mix(in srgb, var(--bad) 12%, var(--bg));
+  color: var(--bad);
+  border-color: color-mix(in srgb, var(--bad) 35%, transparent);
+}
+.notice:empty {
+  display: none;
+}
+
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.seg button {
+  border: 0;
+  background: transparent;
+  padding: 8px 12px;
+  font-size: 0.88rem;
+  min-height: 40px;
+}
+.seg button[aria-pressed="true"] {
+  background: var(--brand);
+  color: #fff;
+  font-weight: 650;
+}
+.ctrl-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.ctrl-label {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+.btn {
+  min-height: var(--tap);
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-weight: 600;
+}
+.btn.primary {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.progress {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+  flex: 1;
+  min-width: 90px;
+}
+.progress > i {
+  display: block;
+  height: 100%;
+  width: calc(var(--p, 0) * 100%);
+  background: var(--brand);
+  border-radius: 999px;
+}
+
+/* ── 학습 뷰: 블록 카드 (§6.1) ───────────────────── */
+.blocks {
+  display: grid;
+  gap: 12px;
+}
+@media (min-width: 768px) {
+  /* 태블릿·노트북: 2열 → 곡 전체 구조가 한 화면에 들어온다 */
+  .blocks {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+.block {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  box-shadow: var(--shadow);
+}
+.block.chorus {
+  border-left-color: var(--chorus);
+  background: color-mix(in srgb, var(--chorus-050) 60%, var(--surface));
+}
+.block.bridge {
+  border-left-color: var(--warn);
+}
+.block.outro {
+  border-left-color: var(--ink-dim);
+}
+.block.done {
+  border-left-color: var(--ok);
+}
+.block-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.block-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+}
+.block.chorus .block-label {
+  color: var(--chorus);
+}
+.block-head .spacer {
+  flex: 1;
+}
+.chk {
+  min-width: 36px;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  font-size: 1rem;
+  line-height: 1;
+}
+.block.done .chk {
+  background: var(--ok-050);
+  border-color: var(--ok);
+  color: var(--ok);
+}
+.lyric {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.lyric li {
+  font-size: calc(1.02rem * var(--font-scale));
+  padding: 3px 0;
+  min-height: 1.6em;
+}
+/* 가리기: visibility 로 숨긴다. blur 는 모바일에서 윤곽이 읽혀 암기 효과가 떨어진다 */
+.lyric li.hidden {
+  visibility: hidden;
+}
+.block.masked {
+  cursor: pointer;
+}
+.block.masked .lyric li.hidden {
+  visibility: hidden;
+}
+.mask-hint {
+  display: none;
+  font-size: 0.85rem;
+  color: var(--ink-dim);
+  font-style: italic;
+}
+.block.masked .mask-hint {
+  display: block;
+}
+.initial {
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+}
+
+/* ── 프롬프터 (§6.2) ─────────────────────────────── */
+.player-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.player-wrap.hidden {
+  display: none;
+}
+.player-wrap > div,
+.player-wrap iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.stage {
+  position: relative;
+  overflow: hidden;
+  /* 폰 세로 3줄 / 태블릿 5줄이 들어갈 높이 */
+  height: clamp(220px, 46vh, 420px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 6px 0 10px;
+  -webkit-mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent);
+  mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent);
+}
+.rail {
+  position: absolute;
+  /* top/left 를 명시해야 한다. 생략하면 flex 컨테이너가 absolute 자식의 static position 을
+     align-items:center 로 잡아 레일 전체(줄 수 × 줄 높이)가 세로 중앙에 걸리고,
+     offsetTop 기준으로 계산한 --shift 가 통째로 어긋난다. */
+  top: 0;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  /* 현재 줄을 중앙에 고정 — 스크롤 이벤트 대신 transform (레이아웃 재계산 없음) */
+  transform: translateY(var(--shift, 0px));
+  transition: transform 0.35s ease;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rail {
+    transition: none;
+  }
+}
+.rail .line {
+  padding: 10px 4px;
+  color: var(--ink-dim);
+  font-size: calc(clamp(1rem, 3.6vw, 1.5rem) * var(--font-scale));
+  opacity: 0.4;
+}
+.rail .line.near {
+  color: var(--ink-soft);
+  opacity: 0.72;
+}
+.rail .line.active {
+  color: var(--ink);
+  opacity: 1;
+  font-weight: 700;
+  font-size: calc(clamp(1.6rem, 7vw, 3.2rem) * var(--font-scale));
+  line-height: 1.25;
+}
+.rail .blocktag {
+  display: block;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: var(--chorus);
+  text-transform: uppercase;
+  margin-top: 6px;
+}
+.lineprog {
+  width: min(360px, 70%);
+  height: 5px;
+  margin: 2px auto 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 16%, transparent);
+  overflow: hidden;
+}
+.lineprog > i {
+  display: block;
+  height: 100%;
+  width: calc(var(--p, 0) * 100%);
+  background: var(--brand);
+}
+.countin {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  pointer-events: none;
+}
+.countin.on {
+  display: flex;
+}
+.countin b {
+  font-size: clamp(3rem, 16vw, 6rem);
+  line-height: 1;
+  color: var(--brand);
+}
+.countin span {
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+.controls {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0 12px;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid var(--line);
+}
+.clock {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  min-width: 92px;
+}
+.offset {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+.offset output {
+  font-variant-numeric: tabular-nums;
+  min-width: 56px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+.offset button {
+  min-width: 40px;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  font-size: 0.8rem;
+}
+
+/* ── 싱크 도구 (§6.3) ────────────────────────────── */
+.urlrow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.urlrow input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--tap);
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.taplist {
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+  max-height: 46vh;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.taplist li {
+  display: grid;
+  grid-template-columns: 2.4em 4.6em 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 50%, transparent);
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+.taplist li:last-child {
+  border-bottom: 0;
+}
+.taplist li .n {
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+}
+.taplist li .t {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+.taplist li .d {
+  font-size: 0.76rem;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+.taplist li.recorded .t {
+  color: var(--ok);
+  font-weight: 650;
+}
+.taplist li.cursor {
+  background: var(--brand-050);
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
+  font-weight: 650;
+}
+.taplist li.chorus .line-text {
+  color: var(--chorus);
+}
+.tapbar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  gap: 8px;
+  padding: 10px 0 12px;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid var(--line);
+}
+.tapbtn {
+  flex: 1;
+  min-height: 64px;
+  border-radius: 12px;
+  border: 0;
+  background: var(--brand);
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+.tapbtn:disabled {
+  background: var(--surface-2);
+  color: var(--ink-dim);
+}
+textarea.io {
+  width: 100%;
+  min-height: 110px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 0.8rem;
+}
+details.io-box {
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 10px 12px;
+}
+details.io-box summary {
+  cursor: pointer;
+  font-weight: 650;
+  font-size: 0.92rem;
+}
+.row-end {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.hint {
+  font-size: 0.84rem;
+  color: var(--ink-dim);
+  margin: 6px 0 0;
+}

@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="description" content="노래를 들으며 줄마다 탭해 정확한 타임라인을 만듭니다" />
+    <title>타임라인 보정 · 노래 연습</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='88'%3E%E2%8F%B1%3C/text%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="karaoke.css" />
+  </head>
+  <body class="sync">
+    <header class="appbar">
+      <a class="iconbtn" id="back" href="prompter.html" title="프롬프터로">← 프롬프터</a>
+      <h1 id="title">타임라인 보정</h1>
+      <a class="iconbtn" href="study.html" title="암기 화면으로">📖</a>
+    </header>
+
+    <nav class="songtabs" id="songtabs" role="tablist" aria-label="곡 선택"></nav>
+
+    <main class="wrap">
+      <p class="notice" id="notice" role="status" aria-live="polite"></p>
+
+      <div class="urlrow">
+        <input
+          id="url"
+          type="url"
+          inputmode="url"
+          placeholder="YouTube 주소 (없으면 타이머로 보정)"
+          aria-label="YouTube 주소"
+        />
+        <button class="btn" id="url-save">저장</button>
+        <button class="btn" id="url-search">검색</button>
+      </div>
+
+      <div class="player-wrap hidden" id="player-wrap"><div id="player"></div></div>
+
+      <div class="ctrl-row">
+        <button class="btn primary" id="play" style="min-width: 96px">▶ 재생</button>
+        <span class="clock" id="clock">0:00 / 0:00</span>
+        <span class="ctrl-label" id="count">0 / 0 줄</span>
+        <div class="progress"><i id="prog"></i></div>
+      </div>
+
+      <div class="ctrl-row">
+        <button class="btn" id="undo">⟲ 되돌리기</button>
+        <button class="btn" id="reset">초기화</button>
+        <button class="btn" id="apply" disabled>프롬프터에 적용</button>
+      </div>
+
+      <ol class="taplist" id="taplist"></ol>
+
+      <details class="io-box">
+        <summary>JSON 내보내기 / 가져오기</summary>
+        <p class="hint">
+          보정한 타임라인을 다른 기기로 옮기거나 <code>songs.js</code> 에 영구 반영할 때 씁니다.
+        </p>
+        <textarea class="io" id="io" spellcheck="false" aria-label="타임라인 JSON"></textarea>
+        <div class="row-end">
+          <button class="btn" id="export">내보내기</button>
+          <button class="btn" id="download">파일로 저장</button>
+          <button class="btn" id="import">가져오기</button>
+        </div>
+      </details>
+
+      <p class="hint">
+        스페이스 = 이 줄 시작 기록 · Backspace = 되돌리기 · ↑ ↓ = 커서 이동 · 줄을 누르면 그 지점부터
+        다시 기록합니다. 매 탭마다 자동 저장됩니다.
+      </p>
+    </main>
+
+    <div class="tapbar">
+      <button class="tapbtn" id="tap">스페이스 = 이 줄 시작</button>
+    </div>
+
+    <noscript>이 페이지는 JavaScript가 필요합니다.</noscript>
+    <script type="module" src="sync.js"></script>
+  </body>
+</html>

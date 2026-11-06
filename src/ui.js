@@ -191,6 +191,40 @@ export function renderMenu(state) {
     )
   );
 
+  // 노래 연습 서브앱(karaoke/)으로 가는 링크 카드.
+  // MODES에 넣지 않는 이유: MODES는 startQuiz 출제 로직에 묶여 있어 성격이 다르다
+  // (별점·학습 페이지·난이도가 모두 퀴즈 전제). 결합은 <a href> 하이퍼링크뿐 —
+  // 게임 로직과 JS 의존이 없어 한쪽이 깨져도 다른 쪽에 영향이 없다.
+  const appLinks = h(
+    'section',
+    { class: 'app-links' },
+    h('h2', { class: 'app-links-title' }, '🎶 노래 연습'),
+    h('div', { class: 'app-links-grid' }, [
+      h(
+        'a',
+        { class: 'link-card', href: 'karaoke/study.html' },
+        h('span', { class: 'link-icon' }, '📖'),
+        h(
+          'span',
+          { class: 'link-body' },
+          h('strong', {}, '가사 암기'),
+          h('span', {}, '곡별 탭으로 정리된 가사 · 가리기 연습')
+        )
+      ),
+      h(
+        'a',
+        { class: 'link-card', href: 'karaoke/prompter.html' },
+        h('span', { class: 'link-icon' }, '🎤'),
+        h(
+          'span',
+          { class: 'link-body' },
+          h('strong', {}, '가사 프롬프터'),
+          h('span', {}, '실제 곡 시간에 맞춰 흐르는 가사')
+        )
+      ),
+    ])
+  );
+
   app().replaceChildren(
     appBar(state, { center: playOpts }),
     h(
@@ -199,7 +233,8 @@ export function renderMenu(state) {
       // 홈 타이틀: 싱가(idle, 눈 깜빡임만 — 정보 없는 말풍선·상시 모션 금지. docs/05 §2 P6)
       h('h1', { class: 'title' }, state.mascotEnabled ? createMascot({ mood: 'idle', size: 32 }) : '🎵', ' ' + t('appTitle')),
       h('p', { class: 'subtitle' }, t('appSubtitle')),
-      h('div', { class: 'mode-grid' }, cards)
+      h('div', { class: 'mode-grid' }, cards),
+      appLinks
     )
   );
 }

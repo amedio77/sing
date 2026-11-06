@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="description" content="곡별 탭으로 정리된 가사 · 가리기 연습으로 외우기" />
+    <title>가사 암기 · 노래 연습</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='88'%3E%F0%9F%93%96%3C/text%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="karaoke.css" />
+  </head>
+  <body class="study">
+    <header class="appbar">
+      <a class="iconbtn" href="../index.html" title="메인으로">← 메인</a>
+      <h1>가사 암기</h1>
+      <button class="iconbtn" id="font-down" aria-label="글자 작게">A−</button>
+      <button class="iconbtn" id="font-up" aria-label="글자 크게">A+</button>
+    </header>
+
+    <nav class="songtabs" id="songtabs" role="tablist" aria-label="곡 선택"></nav>
+
+    <main class="wrap">
+      <div id="view"></div>
+    </main>
+
+    <noscript>이 페이지는 JavaScript가 필요합니다.</noscript>
+    <script type="module" src="study.js"></script>
+  </body>
+</html>

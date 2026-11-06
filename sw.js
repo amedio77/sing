@@ -1,6 +1,6 @@
 // sw.js — 오프라인 지원 서비스워커. 네트워크 우선 + 캐시 폴백:
 // 온라인이면 항상 서버 최신(배포 즉시 반영, 낡은 코드 고착 없음), 오프라인이면 마지막 캐시로 동작.
-const CACHE = 'sing-v4'; // v4: 박자(음표 길이·쉼표) 모드
+const CACHE = 'sing-v5'; // v5: 노래 연습(가사 암기·프롬프터) 서브앱 추가
 const ASSETS = [
   './',
   './index.html',
@@ -24,6 +24,19 @@ const ASSETS = [
   './data/rhythm.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
+  // 노래 연습 서브앱 — 타이머 프롬프터·학습 뷰는 오프라인에서도 완전 동작해야 한다.
+  // 프리캐시하지 않으면 오프라인 첫 방문 때 fetch 폴백이 index.html(게임 홈)을 돌려준다.
+  './karaoke/study.html',
+  './karaoke/prompter.html',
+  './karaoke/sync.html',
+  './karaoke/karaoke.css',
+  './karaoke/songs.js',
+  './karaoke/timeline.js',
+  './karaoke/clock.js',
+  './karaoke/store.js',
+  './karaoke/study.js',
+  './karaoke/prompter.js',
+  './karaoke/sync.js',
 ];
 
 self.addEventListener('install', (e) => {
