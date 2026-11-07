@@ -212,23 +212,31 @@ function applyActive(i) {
     else if (d < 0 && -d <= before) cls = 'line past';
     if (lineEls[k].className !== cls) lineEls[k].className = cls;
   }
-  // 현재 줄을 무대 중앙에 고정. 글꼴 크기가 바뀐 뒤 측정해야 하므로 class 적용 후에 읽는다.
+  // 현재 줄을 무대 위쪽 ANCHOR 지점에 둔다.
+  // 정중앙(0.5)에 두면 위 절반이 '지난 줄'(거의 안 보이는) 차지라 그냥 빈 공간이 된다.
+  // 위로 올릴수록 아래에 다음 줄이 더 들어와, 부를 때 필요한 정보가 화면을 채운다.
+  // 글꼴 크기가 바뀐 뒤 측정해야 하므로 class 적용 후에 읽는다.
   const target = lineEls[Math.max(0, i)];
   if (!target) return;
   const stage = $('.stage');
-  const shift = stage.clientHeight / 2 - (target.offsetTop + target.offsetHeight / 2);
+  const shift = stage.clientHeight * ANCHOR - (target.offsetTop + target.offsetHeight / 2);
   $('#rail').style.setProperty('--shift', `${Math.round(shift)}px`);
 }
 
+// 현재 줄이 놓이는 세로 위치 (무대 높이 대비). 0.5 = 정중앙.
+const ANCHOR = 0.34;
+
 // 앞쪽을 더 넓게 본다 — 부를 때 필요한 건 다음 줄이지 지나간 줄이 아니다.
-// 폰 세로 = 이전1·현재·다음2 / 태블릿·노트북 = 이전2·현재·다음3 (§6.2)
+// 창 크기가 아니라 '무대 높이'로 정한다: 집중 모드면 무대가 두 배가 되므로
+// 그만큼 다음 줄을 더 채워야 빈 공간이 생기지 않는다. (§6.2)
 function lineWindow() {
   const p = prefs.lineWindow;
   if (typeof p === 'number') return { before: p, after: p + 1 }; // 옛 설정값(숫자) 호환
   if (p && typeof p === 'object') return { before: p.before ?? 1, after: p.after ?? 2 };
-  return window.matchMedia('(min-width: 768px)').matches
-    ? { before: 2, after: 3 }
-    : { before: 1, after: 2 };
+  const h = $('.stage')?.clientHeight ?? 320;
+  if (h >= 640) return { before: 2, after: 7 }; // 집중 모드
+  if (h >= 420) return { before: 2, after: 4 }; // 노트북·태블릿 기본
+  return { before: 1, after: 3 }; // 폰 세로 기본
 }
 
 function startLoop() {
