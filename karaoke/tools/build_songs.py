@@ -15,7 +15,7 @@
 # 네트워크(lrclib, YouTube)는 --cache 에 파일이 없을 때만 쓴다. 캐시는 리포에 넣지 않는다
 # (자막·가사 원문이므로).
 
-import argparse, io, json, os, re, statistics, sys, urllib.request
+import argparse, difflib, io, json, os, re, statistics, sys, urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # karaoke/
 SRC = os.path.join(ROOT, 'lyrics-source.md')
@@ -30,6 +30,7 @@ SONGS = [
         released='1987', source='1집 『사랑하기 때문에』 (1987)',
         youtube='6O8oM-vPRtY', duration=381,  # 유재하 - Topic (공식 음원)
         timing='lrclib:17372891',  # 381초 음원 전용 싱크 — 간주가 3~4초 긴 마스터까지 반영
+        split='half',  # 악보: 모든 줄이 2마디·첫 박 시작 → 묶인 두 줄은 정확히 반에서 나뉜다
         blocks=[(4, 'verse', '1절'), (4, 'verse', '1절'), (4, 'bridge', '전개'), (6, 'chorus', '후렴'),
                 (4, 'verse', '2절'), (4, 'bridge', '전개'), (7, 'chorus', '후렴')],
     ),
@@ -38,6 +39,7 @@ SONGS = [
         released=None, source='원곡 · RIAK 공식 오디오',
         youtube='WhLgoz204Z4', duration=271,  # [Official Audio] 고한우 - 암연(Tearful)
         timing='youtube-cc:WhLgoz204Z4',  # 영상 자체의 수동 자막(2줄씩) + 자동 자막 단어 타이밍
+        split='half',  # 악보: 각 쌍은 2마디+2마디. 자동 자막은 강세 음절에 늦게 찍히는 일이 있다
         blocks=[(4, 'verse', '1절'), (4, 'verse', '2절'), (4, 'chorus', '후렴'), (4, 'chorus', '후렴 ②'),
                 (4, 'chorus', '후렴'), (4, 'chorus', '후렴 ②'), (1, 'outro', '엔딩')],
     ),
@@ -46,6 +48,7 @@ SONGS = [
         released=None, source='4집 『다시 꿈꾸고 싶다』',
         youtube='GtYO-9I4dUQ', duration=256,  # 이 영상 자막과 대조해 0.4초 이내 일치 확인
         timing='lrclib:18702319',
+        split='cc-relative', cc_ref='GtYO-9I4dUQ',  # 같은 영상 자동 자막의 줄 내 상대 간격
         blocks=[(4, 'verse', '1절'), (3, 'chorus', '후렴'), (6, 'verse', '2절'), (3, 'bridge', '브릿지'),
                 (3, 'chorus', '후렴'), (3, 'outro', '엔딩')],
     ),
@@ -54,6 +57,9 @@ SONGS = [
         released='2007', source='3집 『나무로 만든 노래』 (2007)',
         youtube='59y92uRqV7g', duration=212,  # Lee Juck - Topic (공식 음원)
         timing='lrclib:15782978',  # 213.8초 스트리밍 음원 기준 싱크
+        # 악보: '세상이 여기' 를 붙여 부르고 쉰 뒤 '있어줘서' — 싱크 한 줄 안에 긴 쉼이 있어
+        # 글자 비례로 나누면 3초 늦는다. 같은 음원 가사 영상 자동 자막의 줄 내 상대 간격을 쓴다.
+        split='cc-relative', cc_ref='bQzv8He-UqM',
         blocks=[(6, 'verse', '1절'), (3, 'bridge', '전개'), (7, 'chorus', '후렴'), (6, 'verse', '2절'),
                 (3, 'bridge', '전개'), (7, 'chorus', '후렴'), (2, 'outro', '엔딩')],
     ),
@@ -127,6 +133,27 @@ def cc_events(d):
             s = e['tStartMs'] / 1000
             out.append((s, s + e.get('dDurationMs', 0) / 1000, t))
     return out
+
+
+def cc_words(d):
+    out = []
+    for e in d.get('events', []):
+        for s in e.get('segs') or []:
+            w = H(s.get('utf8', ''))
+            if w:
+                out.append(((e.get('tStartMs', 0) + s.get('tOffsetMs', 0)) / 1000, w))
+    return sorted(out)
+
+
+def word_time(words, key, lo, hi):
+    """[lo, hi] 안에서 key(첫 두 음절)로 시작하는 자막 단어의 시각. 없으면 None."""
+    best, best_r = None, 0.0
+    for t, w in words:
+        if lo <= t <= hi:
+            r = difflib.SequenceMatcher(None, key, w[:len(key)]).ratio()
+            if r > best_r:
+                best, best_r = t, r
+    return best if best_r >= 0.5 else None
 
 
 def cc_word_onsets(d):
@@ -261,6 +288,39 @@ def build_song(cfg, user_lines, cache):
             snapped, t = t2 != t, t2
         out.append(t)
         report.append((li, t, conf, owner[j], mid))
+
+    # ── 쪼갠 줄 보정 ─────────────────────────────────
+    # 근거 한 줄 안에 사용자 줄이 둘 이상 들어 있을 때, 글자 비례 분할은 줄 안의 긴 쉼을
+    # 모른다. 곡마다 악보로 확인한 전략을 쓴다.
+    mode = cfg.get('split', 'syllable')
+    if mode == 'half':
+        # 악보상 줄 길이가 같은 곡: 근거 줄 구간을 사용자 줄 수로 균등 분할
+        typ = statistics.median(e - s0 for s0, e, _ in src if e) if kind != 'lrclib' else None
+        groups = {}
+        for li, _, _, own, _ in report:
+            if own is not None:
+                groups.setdefault(own, []).append(li)
+        for own, lis in groups.items():
+            if len(lis) < 2:
+                continue
+            s0 = src[own][0]
+            nxt = src[own + 1][0] if own + 1 < len(src) else cfg['duration']
+            span = typ if typ else nxt - s0
+            for k, li in enumerate(lis[1:], start=1):
+                est = s0 + span * k / len(lis)
+                out[li] = snap(est, onsets, window=1.2) if onsets else est
+    elif mode == 'cc-relative':
+        # 같은 음원 자동 자막의 '줄 안 상대 간격'만 쓴다 — 자막의 지연 오차가 상쇄된다
+        words = cc_words(yt_subs(cfg['cc_ref'], cache, auto=True))
+        for li, _, _, own, mid in report:
+            if not mid or own is None:
+                continue
+            s0 = src[own][0]
+            nxt = src[own + 1][0] if own + 1 < len(src) else cfg['duration']
+            w0 = word_time(words, H(src[own][2])[:2], s0 - 1.5, s0 + 4)
+            w1 = word_time(words, H(user_lines[li])[:2], s0, nxt + 2.5)
+            if w0 is not None and w1 is not None and w1 > w0:
+                out[li] = s0 + (w1 - w0)
 
     # 근거에 없는 줄은 앞뒤 사이를 음절 비율로 메운다
     for i, t in enumerate(out):

@@ -3,7 +3,7 @@
 // 버전을 올리면 activate 에서 옛 캐시를 통째로 지운다.
 // karaoke 쪽은 에셋 URL에 ?v= 를 붙여 HTML↔CSS 짝이 어긋나지 않게 해 두었다
 // (어긋나면 카운트인 배지가 가사 마스크에 먹히는 식으로 조용히 깨진다).
-const CACHE = 'sing-v10'; // v10: 유튜브 재생 상태 연동 + 시작 전 이동 보정
+const CACHE = 'sing-v11'; // v11: 악보 기반 쪼갠 줄 타이밍 보정
 const ASSETS = [
   './',
   './index.html',
