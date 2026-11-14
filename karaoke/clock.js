@@ -2,16 +2,21 @@
 // 설계 문서 docs/11-karaoke-design.md §5
 //
 // 프롬프터는 "지금 몇 초인가"만 알면 된다. 그래서 두 구현이 같은 모양을 갖는다:
-//   now() duration() play() pause() seek() isPlaying() destroy() onReady() onError()
+//   now() duration() play() pause() seek() isPlaying() destroy() onReady() onError() onState()
+// onState(cb): 재생/정지가 바뀔 때 cb(playing). 유튜브 화면 자체의 버튼으로 재생해도
+// 가사가 따라 움직이고 앱의 ▶/❙❙ 라벨이 맞게 하려면 상태를 '구독'해야 한다.
 // 임베드가 막히면 clock 변수만 갈아끼우면 되고 렌더 루프는 건드리지 않는다.
 
 // ── 공통: 콜백 보관 ───────────────────────────────────
 function hooks() {
   const ready = [];
   const error = [];
+  const state = [];
   return {
     onReady: (cb) => ready.push(cb),
     onError: (cb) => error.push(cb),
+    onState: (cb) => state.push(cb),
+    fireState: (playing) => state.forEach((cb) => cb(playing)),
     fireReady: (...a) => ready.splice(0).forEach((cb) => cb(...a)),
     fireError: (...a) => error.forEach((cb) => cb(...a)),
   };
@@ -41,11 +46,13 @@ export function createTimerClock({ duration = 0, rate = 1 } = {}) {
       base = now();
       startedAt = performance.now();
       playing = true;
+      h.fireState(true);
     },
     pause() {
       if (!playing) return;
       base = now();
       playing = false;
+      h.fireState(false);
     },
     seek(sec) {
       base = Math.max(0, sec);
@@ -62,6 +69,7 @@ export function createTimerClock({ duration = 0, rate = 1 } = {}) {
     },
     onReady: h.onReady,
     onError: h.onError,
+    onState: h.onState,
   };
 }
 
@@ -95,10 +103,21 @@ function loadYouTubeAPI() {
   return apiPromise;
 }
 
+// 플레이어 상태 (YT.PlayerState)
+const UNSTARTED = -1;
+const ENDED = 0;
+const PLAYING = 1;
+const PAUSED = 2;
+const CUED = 5;
+
 export function createYouTubeClock({ videoId, mount }) {
   const h = hooks();
   let player = null;
   let destroyed = false;
+  // 한 번도 재생하지 않은(시작 전·대기) 영상은 seekTo 를 무시하고 0초부터 재생한다.
+  // '바로 시작'은 열자마자 누르는 버튼이라 이 경우가 기본이다 — 이동 위치를 들고 있다가
+  // 실제 재생이 시작되는 순간 적용한다.
+  let pendingSeek = null;
 
   loadYouTubeAPI()
     .then((YT) => {
@@ -114,6 +133,16 @@ export function createYouTubeClock({ videoId, mount }) {
         },
         events: {
           onReady: () => !destroyed && h.fireReady(),
+          onStateChange: (e) => {
+            if (e.data === PLAYING && pendingSeek != null) {
+              const t = pendingSeek;
+              pendingSeek = null;
+              player.seekTo(t, true);
+            }
+            // 버퍼링(3)은 건너뛴다 — 재생 의도가 유지되는 중간 상태라 라벨을 흔들지 않는다
+            if (e.data === PLAYING) h.fireState(true);
+            else if (e.data === PAUSED || e.data === ENDED) h.fireState(false);
+          },
           onError: (e) =>
             !destroyed && h.fireError(YT_ERRORS[e.data] || `재생 오류 (코드 ${e.data}).`),
         },
@@ -131,12 +160,27 @@ export function createYouTubeClock({ videoId, mount }) {
 
   return {
     kind: 'youtube',
-    now: () => safe(() => player.getCurrentTime() || 0, 0),
+    // 이동 대기 중이면 목표 위치를 현재 시각으로 보여 준다 — 가사가 먼저 그 줄로 가 있어야
+    // 재생이 시작되는 순간 어긋나 보이지 않는다.
+    now: () => (pendingSeek != null ? pendingSeek : safe(() => player.getCurrentTime() || 0, 0)),
     duration: () => safe(() => player.getDuration() || 0, 0),
     isPlaying: () => safe(() => player.getPlayerState() === 1, false),
     play: () => safe(() => player.playVideo()),
     pause: () => safe(() => player.pauseVideo()),
-    seek: (sec) => safe(() => player.seekTo(Math.max(0, sec), true)),
+    seek: (sec) =>
+      safe(() => {
+        const t = Math.max(0, sec);
+        const st = player.getPlayerState();
+        // 시작 전에는 seekTo 를 부르지 않는다 — 유튜브는 시작 전 영상에 seekTo 를 받으면
+        // 스스로 재생을 시작해 버려서, 줄을 고르는 동안 노래가 흘러나온다.
+        // 위치만 들고 있다가 재생 버튼으로 실제 재생이 시작될 때 적용한다.
+        if (st === UNSTARTED || st === CUED) {
+          pendingSeek = t;
+          return;
+        }
+        pendingSeek = null;
+        player.seekTo(t, true);
+      }),
     setRate: (r) => safe(() => player.setPlaybackRate(r)),
     getRate: () => safe(() => player.getPlaybackRate() || 1, 1),
     destroy() {
@@ -146,5 +190,6 @@ export function createYouTubeClock({ videoId, mount }) {
     },
     onReady: h.onReady,
     onError: h.onError,
+    onState: h.onState,
   };
 }

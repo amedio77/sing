@@ -170,12 +170,12 @@ function attachClock() {
     $('#player-wrap').classList.add('hidden');
     useTimer(`${msg} 타이머 모드로 전환했습니다.`, true);
   });
-  clock = yt;
+  clock = wireClock(yt);
 }
 
 function useTimer(msg, bad = false) {
   if (clock) clock.destroy();
-  clock = createTimerClock({ duration: timeline.duration });
+  clock = wireClock(createTimerClock({ duration: timeline.duration }));
   notice(msg, bad);
   updatePlayBtn();
 }
@@ -261,8 +261,26 @@ function stopLoop() {
 }
 
 // ── 컨트롤 ───────────────────────────────────────────
-function updatePlayBtn() {
-  const playing = clock?.isPlaying();
+// 시계의 재생/정지 변화를 구독한다. 유튜브 화면 자체의 ▶ 로 재생해도 가사가 따라 흐르고,
+// 앱 버튼 라벨이 실제 상태와 어긋나지 않는다(버퍼링 중 0.12초 뒤 한 번 확인하던 방식은
+// 라벨이 '▶ 재생'으로 굳는 일이 있었다).
+function wireClock(c) {
+  c.onState((playing) => {
+    if (c !== clock) return; // 갈아끼운 옛 시계의 늦은 알림은 무시
+    if (playing) {
+      startLoop();
+      requestWake();
+    } else {
+      stopLoop();
+      releaseWake();
+      paint(true);
+    }
+    updatePlayBtn(playing);
+  });
+  return c;
+}
+
+function updatePlayBtn(playing = clock?.isPlaying()) {
   $('#play').textContent = playing ? '❙❙ 일시정지' : '▶ 재생';
 }
 

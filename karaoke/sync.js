@@ -70,6 +70,7 @@ function loadSong(next) {
   renderList();
   attachClock();
   updateStatus();
+  startLoop(); // 곡을 바꿔도 시계 표시가 계속 돌아야 한다
 }
 
 function renderTabs() {
@@ -134,7 +135,7 @@ function attachClock() {
   $('#player-wrap').classList.toggle('hidden', !videoId);
 
   if (!videoId) {
-    clock = createTimerClock({ duration: song.duration });
+    clock = wireClock(createTimerClock({ duration: song.duration }));
     notice('음원 없이 타이머로 보정합니다. 노래를 따로 재생하고 동시에 시작하세요.');
     return;
   }
@@ -142,10 +143,10 @@ function attachClock() {
   yt.onError((msg) => {
     $('#player-wrap').classList.add('hidden');
     clock?.destroy();
-    clock = createTimerClock({ duration: song.duration });
+    clock = wireClock(createTimerClock({ duration: song.duration }));
     notice(`${msg} 타이머 모드로 전환했습니다.`, true);
   });
-  clock = yt;
+  clock = wireClock(yt);
 }
 
 // ── 탭 기록 (FC-1) ───────────────────────────────────
@@ -236,16 +237,22 @@ function stopLoop() {
 
 function togglePlay() {
   if (!clock) return;
-  if (clock.isPlaying()) {
-    clock.pause();
-    stopLoop();
-  } else {
+  if (clock.isPlaying()) clock.pause();
+  else {
     clock.play();
     startLoop();
   }
-  setTimeout(() => {
-    $('#play').textContent = clock.isPlaying() ? '❙❙ 일시정지' : '▶ 재생';
-  }, 120);
+}
+
+// 재생/정지 변화를 구독해 버튼 라벨을 실제 상태에 맞춘다 (유튜브 화면 자체 버튼 포함).
+// 시계 표시 루프는 정지 중에도 계속 돈다 — 탭 위치 확인용.
+function wireClock(c) {
+  c.onState((playing) => {
+    if (c !== clock) return;
+    $('#play').textContent = playing ? '❙❙ 일시정지' : '▶ 재생';
+    startLoop();
+  });
+  return c;
 }
 
 // ── JSON 입출력 (FC-3) ───────────────────────────────
