@@ -28,8 +28,12 @@ SONGS = [
     dict(
         id='yjh-saranghagi', title='사랑하기 때문에', artist='유재하',
         released='1987', source='1집 『사랑하기 때문에』 (1987)',
-        youtube='6O8oM-vPRtY', duration=381,  # 유재하 - Topic (공식 음원)
-        timing='lrclib:17372891',  # 381초 음원 전용 싱크 — 간주가 3~4초 긴 마스터까지 반영
+        youtube='BegG8WySo4k', duration=377,  # 사용자 지정 가사 영상 (377초)
+        # 영상 길이(377초)만 보면 375~378초용 싱크가 맞을 것 같지만, 이 영상을 끝까지 재생하며
+        # 가사 하이라이트 전환을 측정해 보니 그 싱크는 간주 뒤가 +2.85초 밀렸고, 381초용 싱크는
+        # 간주 전후 모두 −0.8~−1.0초(업로더가 미리 넘기는 폭)로 일정했다. 이 영상은 간주가 긴
+        # 마스터이고 4초 차이는 끝 페이드 길이다. — 길이가 아니라 '측정'으로 짝을 정한다.
+        timing='lrclib:17372891', length_checked=True,  # 길이는 달라도 측정으로 짝 확인됨
         split='half',  # 악보: 모든 줄이 2마디·첫 박 시작 → 묶인 두 줄은 정확히 반에서 나뉜다
         blocks=[(4, 'verse', '1절'), (4, 'verse', '1절'), (4, 'bridge', '전개'), (6, 'chorus', '후렴'),
                 (4, 'verse', '2절'), (4, 'bridge', '전개'), (7, 'chorus', '후렴')],
@@ -55,7 +59,7 @@ SONGS = [
     dict(
         id='leejuck-dahaeng', title='다행이다', artist='이적',
         released='2007', source='3집 『나무로 만든 노래』 (2007)',
-        youtube='59y92uRqV7g', duration=212,  # Lee Juck - Topic (공식 음원)
+        youtube='bQzv8He-UqM', duration=212,  # 사용자 지정 가사 영상 (공식 음원과 같은 212초)
         timing='lrclib:15782978',  # 213.8초 스트리밍 음원 기준 싱크
         # 악보: '세상이 여기' 를 붙여 부르고 쉰 뒤 '있어줘서' — 싱크 한 줄 안에 긴 쉼이 있어
         # 글자 비례로 나누면 3초 늦는다. 같은 음원 가사 영상 자동 자막의 줄 내 상대 간격을 쓴다.
@@ -249,7 +253,7 @@ def build_song(cfg, user_lines, cache):
     onsets = None
     if kind == 'lrclib':
         L, ldur = lrclib_lines(ref, cache)
-        if ldur and abs(ldur - cfg['duration']) > 2.5:
+        if ldur and abs(ldur - cfg['duration']) > 2.5 and not cfg.get('length_checked'):
             print(f"  ⚠ lrclib 음원 {ldur:.1f}s ↔ 영상 {cfg['duration']}s — 길이가 달라 타이밍이 어긋날 수 있다")
         src = [(t, None, x) for t, x in L]
     else:

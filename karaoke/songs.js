@@ -16,14 +16,14 @@ export const SONGS = [
     artist: '유재하',
     released: '1987',
     source: '1집 『사랑하기 때문에』 (1987)',
-    duration: 381,
+    duration: 377,
     intro: 37,
-    outro: 18,
-    youtubeId: '6O8oM-vPRtY',
+    outro: 14,
+    youtubeId: 'BegG8WySo4k',
     searchQuery: '유재하 사랑하기 때문에',
     sequence: null,
     // 실측 싱크: 줄마다 시작 시각(초). youtubeId 영상 기준이다.
-    timing: { source: 'lrclib:17372891', videoId: '6O8oM-vPRtY', duration: 381,
+    timing: { source: 'lrclib:17372891', videoId: 'BegG8WySo4k', duration: 377,
       lines: [37.1, 45.4, 55.82, 64.13, 74.83, 83.87, 92.91, 102.05, 111.19, 119.06, 128.27, 138.94, 146.11, 156.08, 163.82, 172.93, 184.15, 192.85, 235.41, 244.05, 252.09, 260.83, 269.27, 276.35, 286.1, 294.42, 301.37, 310.18, 317.76, 327.16, 335.91, 344.28, 356.33] },
     blocks: [
       { kind: 'verse', label: '1절', lines: [
@@ -193,11 +193,11 @@ export const SONGS = [
     duration: 212,
     intro: 1,
     outro: 9,
-    youtubeId: '59y92uRqV7g',
+    youtubeId: 'bQzv8He-UqM',
     searchQuery: '이적 다행이다',
     sequence: null,
     // 실측 싱크: 줄마다 시작 시각(초). youtubeId 영상 기준이다.
-    timing: { source: 'lrclib:15782978', videoId: '59y92uRqV7g', duration: 212,
+    timing: { source: 'lrclib:15782978', videoId: 'bQzv8He-UqM', duration: 212,
       lines: [1.5, 4.09, 11.05, 17.08, 25.49, 30.85, 37.44, 40.04, 44.22, 52.24, 61.64, 67.89, 75.54, 81.21, 87.07, 93.43, 96.72, 100.12, 107.14, 112.96, 122.97, 126.79, 133.08, 136.43, 140.55, 149.52, 157.58, 163.68, 171.4, 177.2, 182.86, 189.7, 192.73, 196.36] },
     blocks: [
       { kind: 'verse', label: '1절', lines: [
