@@ -1,13 +1,15 @@
 // karaoke/sync.js — 탭싱크 보정 도구
 // 설계 문서 docs/11-karaoke-design.md §6.3 / 요구사항 FC-1~FC-4
 //
-// 추정 타임라인은 줄당 ±2~3초 어긋난다. 노래 한 번 들으며 줄마다 탭하면 실측값이 되고,
-// 이후로는 영구히 정확하다. 매 탭마다 저장하므로 중간에 창이 닫혀도 진행분이 남는다.
+// 기본 타임라인은 실측 싱크(기본 영상 기준) 또는 추정값이다. 내 음원·다른 영상으로 부르거나
+// 미세하게 어긋나면, 노래 한 번 들으며 줄마다 탭해 직접 맞춘다.
+// 매 탭마다 저장하므로 중간에 창이 닫혀도 진행분이 남는다.
 
 import { SONGS } from './songs.js';
-import { expand, estimate, indexAt, fmtTime } from './timeline.js';
+import { expand, indexAt, fmtTime } from './timeline.js';
 import {
   loadTimeline,
+  baseTimeline,
   saveTimeline,
   clearTimeline,
   loadVideoId,
@@ -23,7 +25,7 @@ const $ = (s) => document.querySelector(s);
 let prefs = loadPrefs();
 let song;
 let lines = [];
-let estimated = []; // 비교용 추정값 (FC-4)
+let base = null; // 탭하지 않은 줄을 메울 바탕(실측 싱크 또는 추정값) — 차이 표시(FC-4)에도 쓴다
 let taps = []; // 기록된 시각. null = 아직 안 찍음
 let cursor = 0;
 let clock = null;
@@ -46,7 +48,7 @@ function loadSong(next) {
 
   song = next;
   lines = expand(song);
-  estimated = estimate(song);
+  base = baseTimeline(song);
 
   const { timeline } = loadTimeline(song);
   // 보정 기록을 그대로 복원한다. 부분 기록(미기록 줄 null)도 이어서 찍을 수 있어야 한다.
@@ -61,7 +63,8 @@ function loadSong(next) {
 
   $('#title').textContent = `보정 · ${song.title}`;
   $('#back').href = `prompter.html#${song.id}`;
-  $('#url').value = loadVideoId(song.id) ? `https://youtu.be/${loadVideoId(song.id)}` : '';
+  const vid = loadVideoId(song);
+  $('#url').value = vid ? `https://youtu.be/${vid}` : '';
 
   renderTabs();
   renderList();
@@ -113,8 +116,8 @@ function paintRow(i) {
     .filter(Boolean)
     .join(' ');
   row.children[1].textContent = t == null ? '──────' : fmtMs(t);
-  // FC-4: 추정값과 얼마나 달랐는지
-  const d = t == null ? null : t - estimated[i];
+  // FC-4: 바탕(실측 싱크 또는 추정값)과 얼마나 달랐는지
+  const d = t == null ? null : t - base.lines[i];
   row.children[3].textContent = d == null ? '' : `${d >= 0 ? '+' : ''}${d.toFixed(1)}`;
 }
 
@@ -127,7 +130,7 @@ function setCursor(i) {
 
 // ── 시간 소스 ────────────────────────────────────────
 function attachClock() {
-  const videoId = loadVideoId(song.id);
+  const videoId = loadVideoId(song);
   $('#player-wrap').classList.toggle('hidden', !videoId);
 
   if (!videoId) {
@@ -175,15 +178,17 @@ function resetAll() {
   cursor = 0;
   rowEls.forEach((_, k) => paintRow(k));
   updateStatus();
-  notice('기록을 지웠습니다. 프롬프터는 추정 타임라인으로 돌아갑니다.');
+  notice(base.source === 'synced'
+    ? '기록을 지웠습니다. 프롬프터는 기본 음원 싱크로 돌아갑니다.'
+    : '기록을 지웠습니다. 프롬프터는 추정 타임라인으로 돌아갑니다.');
 }
 
-// 매 탭마다 저장한다. 미기록 줄은 추정값으로 메워 언제든 프롬프터가 동작하게 한다.
+// 매 탭마다 저장한다. 미기록 줄은 바탕값으로 메워 언제든 프롬프터가 동작하게 한다.
 // 전부 찍었을 때만 source='tapped' — 부분 기록을 실측이라 주장하지 않는다.
 function merged() {
   const complete = taps.every((t) => t != null);
-  const out = taps.map((t, i) => (t != null ? t : estimated[i]));
-  // 단조 증가 보장: 부분 기록과 추정값이 섞이면 역순이 생길 수 있다
+  const out = taps.map((t, i) => (t != null ? t : base.lines[i]));
+  // 단조 증가 보장: 부분 기록과 바탕값이 섞이면 역순이 생길 수 있다
   for (let i = 1; i < out.length; i++) {
     if (out[i] <= out[i - 1]) out[i] = out[i - 1] + 0.3;
   }
@@ -193,7 +198,8 @@ function merged() {
 function persist() {
   const { complete, lines: ls } = merged();
   saveTimeline(song.id, {
-    source: complete ? 'tapped' : 'estimated',
+    // 부분 기록은 바탕과 같은 출처로 저장해야 loadTimeline 이 바탕 위에 덮어쓴다
+    source: complete ? 'tapped' : base.source,
     offset: 0,
     duration: clock?.duration() || song.duration,
     lines: ls,
@@ -301,9 +307,16 @@ $('#download').addEventListener('click', () => {
 $('#import').addEventListener('click', importJSON);
 
 $('#url-save').addEventListener('click', () => {
-  const id = parseVideoId($('#url').value);
+  const raw = $('#url').value.trim();
+  if (!raw) {
+    // 비우고 저장 = 기본 영상(실측 싱크 기준)으로 되돌리기
+    saveVideoId(song.id, '');
+    loadSong(song);
+    return notice('기본 영상으로 되돌렸습니다.');
+  }
+  const id = parseVideoId(raw);
   if (!id) return notice('YouTube 주소를 인식할 수 없습니다.', true);
-  saveVideoId(song.id, id);
+  saveVideoId(song.id, id === song.youtubeId ? '' : id);
   loadSong(song);
 });
 $('#url-search').addEventListener('click', () =>

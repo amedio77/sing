@@ -3,7 +3,7 @@
 // 버전을 올리면 activate 에서 옛 캐시를 통째로 지운다.
 // karaoke 쪽은 에셋 URL에 ?v= 를 붙여 HTML↔CSS 짝이 어긋나지 않게 해 두었다
 // (어긋나면 카운트인 배지가 가사 마스크에 먹히는 식으로 조용히 깨진다).
-const CACHE = 'sing-v8'; // v8: 프롬프터 가사 세로 배치 조정
+const CACHE = 'sing-v9'; // v9: 새 4곡 + 실측 싱크 + 하위 모듈 버전 고정
 const ASSETS = [
   './',
   './index.html',

@@ -60,10 +60,12 @@ function loadSong(next) {
 
   $('#title').textContent = song.title;
   $('#sync-link').href = `sync.html#${song.id}`;
-  $('#url').value = loadVideoId(song.id) ? `https://youtu.be/${loadVideoId(song.id)}` : '';
+  const vid = loadVideoId(song);
+  $('#url').value = vid ? `https://youtu.be/${vid}` : '';
 
   renderTabs();
   renderMeta(res.reset);
+  renderOffset();
   renderRail();
   attachClock();
   paint(true);
@@ -86,19 +88,18 @@ function renderTabs() {
   );
 }
 
+// 타임라인 출처별 배지 — 사용자가 지금 믿어도 되는 값인지 한눈에 보이게 한다
+const BADGE = {
+  tapped: ['ok', '✓ 보정 완료', '탭싱크로 직접 찍은 타임라인'],
+  synced: ['ok', '✓ 음원 싱크', '기본 영상 기준 실측 싱크 — 어긋나면 오프셋으로 맞추세요'],
+  estimated: ['warn', '추정값 · 보정 권장', '추정 타임라인 — 탭싱크로 보정하면 정확해집니다'],
+};
+
 function renderMeta(resetMsg) {
-  const tapped = timeline.source === 'tapped';
+  const [cls, label, title] = BADGE[timeline.source] || BADGE.estimated;
   $('#meta').replaceChildren(
     document.createTextNode(`${song.artist} · ${fmtTime(song.duration)} · ${lines.length}줄`),
-    tag(
-      'a',
-      {
-        class: 'badge ' + (tapped ? 'ok' : 'warn'),
-        href: `sync.html#${song.id}`,
-        title: tapped ? '탭싱크로 보정된 타임라인' : '추정 타임라인 — 보정하면 정확해집니다',
-      },
-      tapped ? '✓ 보정 완료' : '추정값 · 보정 권장'
-    )
+    tag('a', { class: 'badge ' + cls, href: `sync.html#${song.id}`, title }, label)
   );
   if (resetMsg) notice(resetMsg);
   else notice('');
@@ -126,7 +127,7 @@ function renderRail() {
 
 // ── 시간 소스 + 폴백 (§5.4) ──────────────────────────
 function attachClock() {
-  const videoId = loadVideoId(song.id);
+  const videoId = loadVideoId(song);
   $('#player-wrap').classList.toggle('hidden', !videoId);
 
   if (!videoId) {
@@ -134,16 +135,22 @@ function attachClock() {
     return;
   }
 
+  // 실측 싱크는 특정 영상 기준이다. 다른 영상을 쓰면 인트로 길이가 달라 어긋날 수 있다.
+  if (timeline.source === 'synced' && timeline.videoId && videoId !== timeline.videoId) {
+    notice('저장해 둔 다른 영상을 쓰는 중입니다. 싱크는 기본 영상 기준이라 어긋나면 오프셋으로 맞추거나, 주소 칸을 비우고 저장하면 기본 영상으로 돌아갑니다.');
+  }
+
   const yt = createYouTubeClock({ videoId, mount: 'player' });
   yt.onReady(() => {
     const actual = yt.duration();
-    // 플레이어가 보고한 실제 길이가 다르면 추정 타임라인을 비율로 맞춘다 (§4.2).
-    // 실측(tapped) 타임라인은 훼손하지 않고 안내만 한다.
+    // 플레이어가 보고한 실제 길이가 다르면 추정 타임라인만 비율로 맞춘다 (§4.2).
+    // 실측(tapped·synced) 타임라인은 늘이거나 줄이면 오히려 틀어지므로 안내만 한다
+    // — 영상마다 다른 건 대개 인트로·끝 무음 길이라 비율 문제가 아니다.
     if (actual > 0 && Math.abs(actual - timeline.duration) / timeline.duration > 0.02) {
-      if (timeline.source === 'tapped') {
+      if (timeline.source !== 'estimated') {
         notice(
-          `보정된 타임라인은 ${fmtTime(timeline.duration)} 음원 기준인데 이 영상은 ${fmtTime(actual)}입니다. ` +
-            `오프셋으로 맞추거나 다시 보정하세요.`
+          `타임라인은 ${fmtTime(timeline.duration)} 음원 기준인데 이 영상은 ${fmtTime(actual)}입니다. ` +
+            `어긋나면 오프셋으로 맞추거나 탭싱크로 다시 보정하세요.`
         );
       } else {
         const k = actual / timeline.duration;
@@ -294,10 +301,16 @@ function seekToLine(i) {
   paint(true);
 }
 
+// 오프셋 표시 — 조정할 때뿐 아니라 곡을 불러올 때도 저장값을 보여줘야 한다
+// (안 그러면 실제로는 +0.2s 가 적용돼 있는데 화면엔 0.0s 로 보인다)
+function renderOffset() {
+  $('#off-val').textContent = `${timeline.offset > 0 ? '+' : ''}${timeline.offset.toFixed(1)}s`;
+}
+
 function nudgeOffset(d) {
   timeline = { ...timeline, offset: Math.round((timeline.offset + d) * 10) / 10 };
   saveTimeline(song.id, timeline);
-  $('#off-val').textContent = `${timeline.offset > 0 ? '+' : ''}${timeline.offset.toFixed(1)}s`;
+  renderOffset();
   lastIndex = -2;
   paint(true);
 }
@@ -335,9 +348,17 @@ $('#off-p1').addEventListener('click', () => nudgeOffset(0.1));
 $('#off-p5').addEventListener('click', () => nudgeOffset(0.5));
 
 $('#url-save').addEventListener('click', () => {
-  const id = parseVideoId($('#url').value);
+  const raw = $('#url').value.trim();
+  // 비우고 저장 = 기본 영상(실측 싱크 기준)으로 되돌리기
+  if (!raw) {
+    saveVideoId(song.id, '');
+    loadSong(song);
+    return notice('기본 영상으로 되돌렸습니다.');
+  }
+  const id = parseVideoId(raw);
   if (!id) return notice('YouTube 주소를 인식할 수 없습니다. 영상 링크를 그대로 붙여넣어 주세요.', true);
-  saveVideoId(song.id, id);
+  // 기본 영상과 같은 주소를 넣으면 굳이 따로 저장하지 않는다
+  saveVideoId(song.id, id === song.youtubeId ? '' : id);
   loadSong(song);
 });
 $('#url-search').addEventListener('click', () => {
@@ -349,7 +370,7 @@ $('#url-search').addEventListener('click', () => {
 });
 $('#player-toggle').addEventListener('click', () => {
   const w = $('#player-wrap');
-  if (!loadVideoId(song.id)) return notice('먼저 YouTube 주소를 저장하세요.');
+  if (!loadVideoId(song)) return notice('먼저 YouTube 주소를 저장하세요.');
   w.classList.toggle('hidden');
 });
 // ── 집중 모드 ────────────────────────────────────────

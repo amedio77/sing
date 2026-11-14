@@ -10,7 +10,19 @@
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='88'%3E%F0%9F%8E%A4%3C/text%3E%3C/svg%3E"
     />
-    <link rel="stylesheet" href="karaoke.css?v=4" />
+    <link rel="stylesheet" href="karaoke.css?v=5" />
+    <!-- 하위 모듈까지 버전을 묶는다: 진입 JS 만 ?v= 를 붙이면 import 하는 songs.js·store.js 는
+         옛 캐시가 섞여 깨질 수 있다(새 prompter.js + 옛 store.js). 배포 때 v 를 함께 올린다. -->
+    <script type="importmap">
+      {
+        "imports": {
+          "./songs.js": "./songs.js?v=5",
+          "./timeline.js": "./timeline.js?v=5",
+          "./store.js": "./store.js?v=5",
+          "./clock.js": "./clock.js?v=5"
+        }
+      }
+    </script>
   </head>
   <body class="prompter">
     <header class="appbar">
@@ -81,6 +93,6 @@
     </main>
 
     <noscript>이 페이지는 JavaScript가 필요합니다.</noscript>
-    <script type="module" src="prompter.js?v=4"></script>
+    <script type="module" src="prompter.js?v=5"></script>
   </body>
 </html>
