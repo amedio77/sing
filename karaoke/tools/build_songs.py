@@ -53,8 +53,10 @@ SONGS = [
         youtube='GtYO-9I4dUQ', duration=256,  # 이 영상 자막과 대조해 0.4초 이내 일치 확인
         timing='lrclib:18702319',
         split='cc-relative', cc_ref='GtYO-9I4dUQ',  # 같은 영상 자동 자막의 줄 내 상대 간격
-        blocks=[(4, 'verse', '1절'), (3, 'chorus', '후렴'), (6, 'verse', '2절'), (3, 'bridge', '브릿지'),
-                (3, 'chorus', '후렴'), (3, 'outro', '엔딩')],
+        # 줄 = 실제로 부르는 한 소절(싱크 줄과 1:1). 원문은 두 소절을 한 줄에 묶고 소절 중간에서
+        # 끊는 곳이 있어(「너 하나만으로 / 눈이 부시던」 등) 프롬프터가 한 줄에 오래 머물다 엉뚱한 데서 넘어갔다.
+        blocks=[(8, 'verse', '1절'), (4, 'chorus', '후렴'), (4, 'verse', '2절'), (4, 'chorus', '후렴 ②'),
+                (4, 'bridge', '브릿지'), (4, 'chorus', '후렴'), (4, 'outro', '엔딩')],
     ),
     dict(
         id='leejuck-dahaeng', title='다행이다', artist='이적',
