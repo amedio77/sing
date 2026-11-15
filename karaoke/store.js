@@ -176,6 +176,7 @@ const DEFAULT_PREFS = {
   maskMode: 'reveal', // reveal | block | initial
   lastSongId: null,
   lineWindow: null, // null = 화면 폭에 따라 자동
+  audioMode: 'youtube', // youtube | timer(음원 없이 — 오프라인에서도 저장된 싱크로 흐름)
 };
 
 export function loadPrefs() {

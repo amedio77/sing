@@ -134,7 +134,9 @@ function attachClock() {
   const videoId = loadVideoId(song);
   $('#player-wrap').classList.toggle('hidden', !videoId);
 
-  if (!videoId) {
+  // 오프라인이면 유튜브 로딩 실패를 기다리지 않고 바로 타이머로 간다
+  if (!videoId || navigator.onLine === false) {
+    $('#player-wrap').classList.add('hidden');
     clock = wireClock(createTimerClock({ duration: song.duration }));
     notice('음원 없이 타이머로 보정합니다. 노래를 따로 재생하고 동시에 시작하세요.');
     return;

@@ -10,16 +10,16 @@
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='88'%3E%F0%9F%8E%A4%3C/text%3E%3C/svg%3E"
     />
-    <link rel="stylesheet" href="karaoke.css?v=8" />
+    <link rel="stylesheet" href="karaoke.css?v=9" />
     <!-- 하위 모듈까지 버전을 묶는다: 진입 JS 만 ?v= 를 붙이면 import 하는 songs.js·store.js 는
          옛 캐시가 섞여 깨질 수 있다(새 prompter.js + 옛 store.js). 배포 때 v 를 함께 올린다. -->
     <script type="importmap">
       {
         "imports": {
-          "./songs.js": "./songs.js?v=8",
-          "./timeline.js": "./timeline.js?v=8",
-          "./store.js": "./store.js?v=8",
-          "./clock.js": "./clock.js?v=8"
+          "./songs.js": "./songs.js?v=9",
+          "./timeline.js": "./timeline.js?v=9",
+          "./store.js": "./store.js?v=9",
+          "./clock.js": "./clock.js?v=9"
         }
       }
     </script>
@@ -29,6 +29,7 @@
       <a class="iconbtn" href="study.html" title="암기 화면으로">← 암기</a>
       <h1 id="title">가사 프롬프터</h1>
       <a class="iconbtn" id="sync-link" href="sync.html" title="타임라인 보정">⏱</a>
+      <button class="iconbtn" id="audio-mode" aria-pressed="false">🎵 영상</button>
       <button class="iconbtn" id="player-toggle" aria-label="플레이어 접기">🎬</button>
       <button class="iconbtn" id="fs" aria-label="집중 모드" title="집중 모드 (가사만 크게)" aria-pressed="false">
         ⛶
@@ -88,11 +89,17 @@
 
       <p class="hint">
         스페이스 = 재생/일시정지 · S = 바로 시작 · ← → = 오프셋 ∓0.1초 · ↑ ↓ = 줄 이동 ·
-        F = 집중 모드 (Esc 로 복귀) · 1~4 = 곡 선택
+        F = 집중 모드 (Esc 로 복귀) · 1~4 = 곡 선택 ·
+        🎵/🔇 = 영상과 함께 / 음원 없이(오프라인)
       </p>
     </main>
 
     <noscript>이 페이지는 JavaScript가 필요합니다.</noscript>
-    <script type="module" src="prompter.js?v=8"></script>
+    <script>
+      // 오프라인 캐시 — 메인 메뉴를 거치지 않고 이 페이지를 바로 열어도 등록돼야 한다
+      if ('serviceWorker' in navigator)
+        addEventListener('load', () => navigator.serviceWorker.register('../sw.js', { scope: '../' }).catch(() => {}));
+    </script>
+    <script type="module" src="prompter.js?v=9"></script>
   </body>
 </html>

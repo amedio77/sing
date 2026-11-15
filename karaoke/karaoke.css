@@ -146,6 +146,15 @@ button {
 .iconbtn:hover {
   border-color: var(--brand);
 }
+.urlrow.hidden,
+.iconbtn.hidden {
+  display: none;
+}
+.iconbtn[aria-pressed="true"] {
+  border-color: var(--brand);
+  color: var(--brand);
+  font-weight: 650;
+}
 
 .wrap {
   max-width: var(--content-max);

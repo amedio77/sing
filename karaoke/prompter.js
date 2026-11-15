@@ -126,7 +126,38 @@ function renderRail() {
 }
 
 // ── 시간 소스 + 폴백 (§5.4) ──────────────────────────
+// 음원 없이(타이머) 쓰는 경우: 사용자가 직접 고른 '음원 없이' 모드이거나, 기기가 오프라인일 때.
+// 실측 싱크는 songs.js 에 들어 있고 서비스워커가 캐시하므로 네트워크 없이도 그대로 흐른다.
+// 오프라인에서 유튜브를 먼저 시도하면 API 로딩 실패(최대 10초)를 기다린 뒤에야 타이머로 넘어가
+// 그동안 재생이 안 되므로, 처음부터 타이머로 시작한다.
+const isTimerMode = () => prefs.audioMode === 'timer';
+const isOffline = () => navigator.onLine === false;
+
+function renderMode() {
+  const timer = isTimerMode();
+  const btn = $('#audio-mode');
+  btn.setAttribute('aria-pressed', String(timer));
+  btn.textContent = timer ? '🔇 음원 없이' : isOffline() ? '📴 오프라인' : '🎵 영상';
+  btn.title = timer
+    ? '지금: 음원 없이 저장된 싱크로 진행 — 누르면 유튜브 영상과 함께'
+    : '지금: 유튜브 영상과 함께 — 누르면 음원 없이(오프라인) 진행';
+  const noVideo = timer || isOffline();
+  $('#urlrow').classList.toggle('hidden', noVideo);
+  $('#player-toggle').classList.toggle('hidden', noVideo);
+}
+
 function attachClock() {
+  renderMode();
+  if (isTimerMode() || isOffline()) {
+    $('#player-wrap').classList.add('hidden');
+    const why = isTimerMode() ? '음원 없이 진행합니다' : '오프라인이라 음원 없이 진행합니다';
+    useTimer(
+      `${why} — 저장된 싱크대로 가사가 흐릅니다. 다른 기기·앱에서 노래를 틀면서 동시에 ▶ 재생` +
+        `(인트로 없이 부르려면 ⏭ 바로 시작)을 누르고, 어긋나면 오프셋으로 맞추세요.`
+    );
+    return;
+  }
+
   const videoId = loadVideoId(song);
   $('#player-wrap').classList.toggle('hidden', !videoId);
 
@@ -385,6 +416,17 @@ $('#url-search').addEventListener('click', () => {
     '_blank',
     'noopener'
   );
+});
+$('#audio-mode').addEventListener('click', () => {
+  prefs = savePrefs({ audioMode: isTimerMode() ? 'youtube' : 'timer' });
+  loadSong(song);
+});
+// 연결이 돌아오면(재생 중이 아닐 때만) 영상 모드로 복귀한다 — 부르는 도중엔 끊지 않는다
+window.addEventListener('online', () => {
+  if (!isTimerMode() && clock?.kind === 'timer' && !clock.isPlaying()) loadSong(song);
+});
+window.addEventListener('offline', () => {
+  if (clock?.kind === 'youtube' && !clock.isPlaying()) loadSong(song);
 });
 $('#player-toggle').addEventListener('click', () => {
   const w = $('#player-wrap');
