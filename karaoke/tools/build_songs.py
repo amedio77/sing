@@ -48,17 +48,6 @@ SONGS = [
                 (4, 'chorus', '후렴'), (4, 'chorus', '후렴 ②'), (1, 'outro', '엔딩')],
     ),
     dict(
-        id='ssk-dusaram', title='두 사람', artist='성시경',
-        released=None, source='4집 『다시 꿈꾸고 싶다』',
-        youtube='GtYO-9I4dUQ', duration=256,  # 이 영상 자막과 대조해 0.4초 이내 일치 확인
-        timing='lrclib:18702319',
-        split='cc-relative', cc_ref='GtYO-9I4dUQ',  # 같은 영상 자동 자막의 줄 내 상대 간격
-        # 줄 = 실제로 부르는 한 소절(싱크 줄과 1:1). 원문은 두 소절을 한 줄에 묶고 소절 중간에서
-        # 끊는 곳이 있어(「너 하나만으로 / 눈이 부시던」 등) 프롬프터가 한 줄에 오래 머물다 엉뚱한 데서 넘어갔다.
-        blocks=[(8, 'verse', '1절'), (4, 'chorus', '후렴'), (4, 'verse', '2절'), (4, 'chorus', '후렴 ②'),
-                (4, 'bridge', '브릿지'), (4, 'chorus', '후렴'), (4, 'outro', '엔딩')],
-    ),
-    dict(
         id='leejuck-dahaeng', title='다행이다', artist='이적',
         released='2007', source='3집 『나무로 만든 노래』 (2007)',
         youtube='bQzv8He-UqM', duration=212,  # 사용자 지정 가사 영상 (공식 음원과 같은 212초)
@@ -68,6 +57,14 @@ SONGS = [
         split='cc-relative', cc_ref='bQzv8He-UqM',
         blocks=[(6, 'verse', '1절'), (3, 'bridge', '전개'), (7, 'chorus', '후렴'), (6, 'verse', '2절'),
                 (3, 'bridge', '전개'), (7, 'chorus', '후렴'), (2, 'outro', '엔딩')],
+    ),
+    dict(
+        # 암기 전용 — 실측 싱크가 없어 프롬프터에는 나오지 않는다 (timing=None)
+        id='broccoli-encore', title='앵콜요청금지', artist='브로콜리너마저',
+        released=None, source='원곡', youtube=None, duration=None, timing=None,
+        blocks=[(5, 'verse', '도입'), (4, 'verse', '1절'), (3, 'bridge', '전개'), (3, 'chorus', '후렴'),
+                (4, 'verse', '2절'), (3, 'bridge', '전개'), (3, 'chorus', '후렴'),
+                (3, 'bridge', '브릿지'), (3, 'chorus', '후렴'), (6, 'outro', '엔딩')],
     ),
 ]
 
@@ -353,6 +350,22 @@ def write_js(entries):
             ls = ',\n          '.join(js(l) for l in lines[i:i + n])
             blocks.append(f"      {{ kind: '{kind}', label: '{label}', lines: [\n          {ls},\n        ] }}")
             i += n
+        if timing is None:  # 암기 전용 곡 — 프롬프터 메타 없이 가사만
+            chunks.append(
+                '  {\n'
+                f"    id: '{cfg['id']}',\n"
+                f"    title: {js(cfg['title'])},\n"
+                f"    artist: {js(cfg['artist'])},\n"
+                f"    released: {js(cfg['released']) if cfg['released'] else 'null'},\n"
+                f"    source: {js(cfg['source'])},\n"
+                '    duration: null,\n    intro: 0,\n    outro: 0,\n    youtubeId: null,\n'
+                f"    searchQuery: {js(cfg['artist'] + ' ' + cfg['title'])},\n"
+                '    sequence: null,\n'
+                '    timing: null, // 싱크 없음 — 암기 화면 전용\n'
+                '    blocks: [\n' + ',\n'.join(blocks) + ',\n    ],\n'
+                '  }'
+            )
+            continue
         first, last = timing[0], timing[-1]
         chunks.append(
             '  {\n'
@@ -406,6 +419,10 @@ def main():
         need = sum(n for n, _, _ in cfg['blocks'])
         if need != len(lines):
             sys.exit(f"「{cfg['title']}」 블록 설정 {need}줄 ≠ 가사 {len(lines)}줄")
+        if not cfg['timing']:
+            print(f"\n== {cfg['title']} / {cfg['artist']}  ({len(lines)}줄, 싱크 없음 — 암기 전용)")
+            entries.append((cfg, lines, None))
+            continue
         print(f"\n== {cfg['title']} / {cfg['artist']}  ({len(lines)}줄, 근거 {cfg['timing']}, 영상 {cfg['youtube']})")
         timing, report, nsrc = build_song(cfg, lines, args.cache)
         low = 0

@@ -61,7 +61,7 @@ function renderTabs() {
           role: 'tab',
           'aria-selected': String(s.id === song.id),
           onclick: () => selectSong(s),
-          title: `${s.artist} · ${fmtTime(s.duration)}`,
+          title: s.duration ? `${s.artist} · ${fmtTime(s.duration)}` : s.artist,
         },
         `${i + 1}. ${s.title}`
       )
@@ -104,12 +104,13 @@ function render() {
     el(
       'div',
       { class: 'meta' },
-      `${song.artist} · ${song.source} · ${fmtTime(song.duration)}`,
-      el(
-        'a',
-        { class: 'badge ok', href: `prompter.html#${song.id}`, title: '프롬프터로 이동' },
-        '🎤 프롬프터로'
-      )
+      [song.artist, song.source, song.duration ? fmtTime(song.duration) : null].filter(Boolean).join(' · ')
+      // 프롬프터는 당분간 숨김 — 다시 쓰려면 아래 주석을 푼다
+      // el(
+      //   'a',
+      //   { class: 'badge ok', href: `prompter.html#${song.id}`, title: '프롬프터로 이동' },
+      //   '🎤 프롬프터로'
+      // )
     ),
     el(
       'div',

@@ -4,7 +4,7 @@
 // 핵심: 가사 렌더는 "지금 몇 초인가"만 안다. 시간 공급자(YouTube/타이머)는 clock.js 가
 // 동일 인터페이스로 추상화하므로, 임베드가 막히면 clock 변수만 갈아끼우고 루프는 그대로 돈다.
 
-import { SONGS } from './songs.js';
+import { SONGS as ALL_SONGS } from './songs.js';
 import { expand, indexAt, progressAt, fmtTime } from './timeline.js';
 import {
   loadTimeline,
@@ -16,6 +16,9 @@ import {
   savePrefs,
 } from './store.js';
 import { createTimerClock, createYouTubeClock } from './clock.js';
+
+// 실측 싱크가 없는 곡(암기 전용)은 프롬프터·보정 대상이 아니다
+const SONGS = ALL_SONGS.filter((s) => s.timing);
 
 const $ = (s) => document.querySelector(s);
 

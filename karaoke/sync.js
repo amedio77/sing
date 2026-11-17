@@ -5,7 +5,7 @@
 // 미세하게 어긋나면, 노래 한 번 들으며 줄마다 탭해 직접 맞춘다.
 // 매 탭마다 저장하므로 중간에 창이 닫혀도 진행분이 남는다.
 
-import { SONGS } from './songs.js';
+import { SONGS as ALL_SONGS } from './songs.js';
 import { expand, indexAt, fmtTime } from './timeline.js';
 import {
   loadTimeline,
@@ -19,6 +19,9 @@ import {
   savePrefs,
 } from './store.js';
 import { createTimerClock, createYouTubeClock } from './clock.js';
+
+// 실측 싱크가 없는 곡(암기 전용)은 프롬프터·보정 대상이 아니다
+const SONGS = ALL_SONGS.filter((s) => s.timing);
 
 const $ = (s) => document.querySelector(s);
 

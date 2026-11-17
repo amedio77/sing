@@ -211,17 +211,18 @@ export function renderMenu(state) {
           h('span', {}, '곡별 탭으로 정리된 가사 · 가리기 연습')
         )
       ),
-      h(
-        'a',
-        { class: 'link-card', href: 'karaoke/prompter.html' },
-        h('span', { class: 'link-icon' }, '🎤'),
-        h(
-          'span',
-          { class: 'link-body' },
-          h('strong', {}, '가사 프롬프터'),
-          h('span', {}, '실제 곡 시간에 맞춰 흐르는 가사')
-        )
-      ),
+      // 프롬프터는 당분간 쓰지 않아 숨김 (파일·싱크 데이터는 그대로 — 주석만 풀면 복구)
+      // h(
+      //   'a',
+      //   { class: 'link-card', href: 'karaoke/prompter.html' },
+      //   h('span', { class: 'link-icon' }, '🎤'),
+      //   h(
+      //     'span',
+      //     { class: 'link-body' },
+      //     h('strong', {}, '가사 프롬프터'),
+      //     h('span', {}, '실제 곡 시간에 맞춰 흐르는 가사')
+      //   )
+      // ),
     ])
   );
 
