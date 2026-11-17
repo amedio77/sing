@@ -337,8 +337,25 @@ button {
 .block.outro {
   border-left-color: var(--ink-dim);
 }
+.block.ment {
+  /* 무대 멘트 — 가사 블록과 구분되게, 2열 화면에서도 한 줄을 다 쓴다 */
+  grid-column: 1 / -1;
+  border-left-color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 6%, var(--surface));
+}
+.block.ment .block-label {
+  color: var(--brand);
+  text-transform: none;
+}
 .block.done {
   border-left-color: var(--ok);
+}
+.scene {
+  margin: 4px 0 2px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--brand);
+  letter-spacing: 0.02em;
 }
 .block-head {
   display: flex;

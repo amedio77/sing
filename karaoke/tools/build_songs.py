@@ -26,7 +26,7 @@ OUT = os.path.join(ROOT, 'songs.js')
 # youtube: 타이밍이 검증된 영상. timing 근거와 같은 음원이어야 한다.
 SONGS = [
     dict(
-        id='yjh-saranghagi', title='사랑하기 때문에', artist='유재하',
+        id='yjh-saranghagi', scene='첫 번째 장면 · 시작', title='사랑하기 때문에', artist='유재하',
         released='1987', source='1집 『사랑하기 때문에』 (1987)',
         youtube='BegG8WySo4k', duration=377,  # 사용자 지정 가사 영상 (377초)
         # 영상 길이(377초)만 보면 375~378초용 싱크가 맞을 것 같지만, 이 영상을 끝까지 재생하며
@@ -39,7 +39,7 @@ SONGS = [
                 (4, 'verse', '2절'), (4, 'bridge', '전개'), (7, 'chorus', '후렴')],
     ),
     dict(
-        id='gohw-amyeon', title='암연', artist='고한우',
+        id='gohw-amyeon', scene='두 번째 장면 · 이별', title='암연', artist='고한우',
         released=None, source='원곡 · RIAK 공식 오디오',
         youtube='WhLgoz204Z4', duration=271,  # [Official Audio] 고한우 - 암연(Tearful)
         timing='youtube-cc:WhLgoz204Z4',  # 영상 자체의 수동 자막(2줄씩) + 자동 자막 단어 타이밍
@@ -48,7 +48,15 @@ SONGS = [
                 (4, 'chorus', '후렴'), (4, 'chorus', '후렴 ②'), (1, 'outro', '엔딩')],
     ),
     dict(
-        id='leejuck-dahaeng', title='다행이다', artist='이적',
+        # 암기 전용 — 실측 싱크가 없어 프롬프터에는 나오지 않는다 (timing=None)
+        id='broccoli-encore', scene='세 번째 장면 · 미련', title='앵콜요청금지', artist='브로콜리너마저',
+        released=None, source='원곡', youtube=None, duration=None, timing=None,
+        blocks=[(5, 'verse', '도입'), (4, 'verse', '1절'), (3, 'bridge', '전개'), (3, 'chorus', '후렴'),
+                (4, 'verse', '2절'), (3, 'bridge', '전개'), (3, 'chorus', '후렴'),
+                (3, 'bridge', '브릿지'), (3, 'chorus', '후렴'), (6, 'outro', '엔딩')],
+    ),
+    dict(
+        id='leejuck-dahaeng', scene='마지막 장면 · 새 노래', title='다행이다', artist='이적',
         released='2007', source='3집 『나무로 만든 노래』 (2007)',
         youtube='bQzv8He-UqM', duration=212,  # 사용자 지정 가사 영상 (공식 음원과 같은 212초)
         timing='lrclib:15782978',  # 213.8초 스트리밍 음원 기준 싱크
@@ -57,14 +65,6 @@ SONGS = [
         split='cc-relative', cc_ref='bQzv8He-UqM',
         blocks=[(6, 'verse', '1절'), (3, 'bridge', '전개'), (7, 'chorus', '후렴'), (6, 'verse', '2절'),
                 (3, 'bridge', '전개'), (7, 'chorus', '후렴'), (2, 'outro', '엔딩')],
-    ),
-    dict(
-        # 암기 전용 — 실측 싱크가 없어 프롬프터에는 나오지 않는다 (timing=None)
-        id='broccoli-encore', title='앵콜요청금지', artist='브로콜리너마저',
-        released=None, source='원곡', youtube=None, duration=None, timing=None,
-        blocks=[(5, 'verse', '도입'), (4, 'verse', '1절'), (3, 'bridge', '전개'), (3, 'chorus', '후렴'),
-                (4, 'verse', '2절'), (3, 'bridge', '전개'), (3, 'chorus', '후렴'),
-                (3, 'bridge', '브릿지'), (3, 'chorus', '후렴'), (6, 'outro', '엔딩')],
     ),
 ]
 
@@ -77,16 +77,22 @@ def parse_lyrics(path):
     txt = io.open(path, encoding='utf-8').read()
     body = re.split(r'^\s*가사\s*$', txt, maxsplit=1, flags=re.M)
     body = body[1] if len(body) == 2 else txt
-    out, cur = {}, None
+    # 곡 안의 표지: [멘트] 노래 전 멘트 / [가사] 가사(기본) / [마무리] 노래 뒤 멘트
+    out, cur, part = {}, None, 'lyrics'
     for raw in body.splitlines():
         line = raw.strip()
         m = re.match(r'^\d+\)\s*(.+)$', line)
         if m:
-            cur = m.group(1).strip()
-            out[cur] = []
+            cur, part = m.group(1).strip(), 'lyrics'
+            out[cur] = {'lyrics': [], 'ment': [], 'closing': []}
+        elif line in PARTS and cur:
+            part = PARTS[line]
         elif line and cur:
-            out[cur].append(re.sub(r'\s*\[\d+\]\s*$', '', line.lstrip('*').strip()))
+            out[cur][part].append(re.sub(r'\s*\[\d+\]\s*$', '', line.lstrip('*').strip()))
     return out
+
+
+PARTS = {'[멘트]': 'ment', '[가사]': 'lyrics', '[마무리]': 'closing'}
 
 
 # ── 타이밍 근거 수집 ──────────────────────────────────
@@ -342,6 +348,14 @@ def js(s):
     return "'" + s.replace('\\', '\\\\').replace("'", "\\'") + "'"
 
 
+def talk(cfg):
+    """무대 멘트 — 암기 화면 전용. 가사 blocks 와 섞지 않는다(줄 수가 싱크와 1:1 이라서)."""
+    arr = lambda xs: '[\n' + ''.join(f'      {js(x)},\n' for x in xs) + '    ]'
+    return (f"    scene: {js(cfg['scene']) if cfg.get('scene') else 'null'},\n"
+            f"    ment: {arr(cfg['ment'])},\n"
+            f"    closing: {arr(cfg['closing'])},\n")
+
+
 def write_js(entries):
     chunks = []
     for cfg, lines, timing in entries:
@@ -362,7 +376,7 @@ def write_js(entries):
                 f"    searchQuery: {js(cfg['artist'] + ' ' + cfg['title'])},\n"
                 '    sequence: null,\n'
                 '    timing: null, // 싱크 없음 — 암기 화면 전용\n'
-                '    blocks: [\n' + ',\n'.join(blocks) + ',\n    ],\n'
+                + talk(cfg) + '    blocks: [\n' + ',\n'.join(blocks) + ',\n    ],\n'
                 '  }'
             )
             continue
@@ -383,7 +397,7 @@ def write_js(entries):
             '    // 실측 싱크: 줄마다 시작 시각(초). youtubeId 영상 기준이다.\n'
             f"    timing: {{ source: '{cfg['timing']}', videoId: '{cfg['youtube']}', duration: {cfg['duration']},\n"
             f"      lines: [{', '.join(f'{t:g}' for t in timing)}] }},\n"
-            '    blocks: [\n' + ',\n'.join(blocks) + ',\n    ],\n'
+            + talk(cfg) + '    blocks: [\n' + ',\n'.join(blocks) + ',\n    ],\n'
             '  }'
         )
     head = (
@@ -413,7 +427,9 @@ def main():
     lyrics = parse_lyrics(SRC)
     entries = []
     for cfg in SONGS:
-        lines = lyrics.get(cfg['title'])
+        sec = lyrics.get(cfg['title']) or {}
+        lines = sec.get('lyrics')
+        cfg = {**cfg, 'ment': sec.get('ment', []), 'closing': sec.get('closing', [])}
         if not lines:
             sys.exit(f"가사 원본에 「{cfg['title']}」 이 없다 (있는 곡: {list(lyrics)})")
         need = sum(n for n, _, _ in cfg['blocks'])

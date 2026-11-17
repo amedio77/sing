@@ -93,14 +93,77 @@ function toggleBlock(bi) {
   render();
 }
 
+const MENT_KEY = -1;
+const CLOSING_KEY = -2;
+
+// 말하는 시간 추정 — 공백·(웃음) 같은 지시문을 빼고 초당 약 5자(분당 300자)
+function speakTime(lines) {
+  const n = lines.join('').replace(/\([^)]*\)/g, '').replace(/\s/g, '').length;
+  return `약 ${Math.max(5, Math.round(n / 5 / 5) * 5)}초`;
+}
+
+function card({ key, kind, label, lines: texts }, mode) {
+  const isDone = memo.checkedBlocks.has(key);
+  const masked = mode === 'block' && !revealed.has(key);
+
+  const lines = texts.map((text) =>
+    el(
+      'li',
+      { class: masked ? 'hidden' : '' },
+      mode === 'initial'
+        ? el('span', { class: 'initial', title: '탭하면 전체공개 모드로' }, initialHint(text))
+        : text
+    )
+  );
+
+  return el(
+    'section',
+    {
+      class: ['block', kind, isDone ? 'done' : '', masked ? 'masked' : ''].filter(Boolean).join(' '),
+      ...(masked
+        ? {
+            onclick: () => {
+              revealed.add(key);
+              render();
+            },
+          }
+        : {}),
+    },
+    el(
+      'div',
+      { class: 'block-head' },
+      el('span', { class: 'block-label' }, label),
+      el('span', { class: 'spacer' }),
+      el(
+        'button',
+        {
+          class: 'chk',
+          'aria-label': `${label} 암기 완료`,
+          'aria-pressed': String(isDone),
+          onclick: (e) => {
+            e.stopPropagation();
+            toggleBlock(key);
+          },
+        },
+        isDone ? '✓' : ''
+      )
+    ),
+    el('ul', { class: 'lyric' }, lines),
+    masked ? el('p', { class: 'mask-hint' }, `${texts.length}줄 — 탭하면 공개`) : null
+  );
+}
+
 function render() {
   const mode = prefs.maskMode;
-  const done = memo.checkedBlocks.size;
+  const done = [...memo.checkedBlocks].filter((k) => k >= 0 && k < song.blocks.length).length;
   const total = song.blocks.length;
+  const mentKeys = [song.ment?.length && MENT_KEY, song.closing?.length && CLOSING_KEY].filter(Boolean);
+  const mentDone = mentKeys.filter((k) => memo.checkedBlocks.has(k)).length;
 
   const header = el(
     'div',
     {},
+    song.scene ? el('p', { class: 'scene' }, song.scene) : null,
     el(
       'div',
       { class: 'meta' },
@@ -133,71 +196,50 @@ function render() {
       { class: 'ctrl-row' },
       el('span', { class: 'ctrl-label' }, '암기'),
       el('div', { class: 'progress' }, el('i', { style: `--p:${total ? done / total : 0}` })),
-      el('span', { class: 'ctrl-label' }, `${done}/${total} 블록`)
-    )
-  );
-
-  const blocks = el(
-    'div',
-    { class: 'blocks' },
-    song.blocks.map((b, bi) => {
-      const isDone = memo.checkedBlocks.has(bi);
-      const masked = mode === 'block' && !revealed.has(bi);
-
-      const lines = b.lines.map((text) =>
-        el(
-          'li',
-          { class: masked ? 'hidden' : '' },
-          mode === 'initial'
-            ? el('span', { class: 'initial', title: '탭하면 전체공개 모드로' }, initialHint(text))
-            : text
-        )
-      );
-
-      return el(
-        'section',
-        {
-          class: [
-            'block',
-            b.kind,
-            isDone ? 'done' : '',
-            masked ? 'masked' : '',
-          ]
-            .filter(Boolean)
-            .join(' '),
-          ...(masked
-            ? {
-                onclick: () => {
-                  revealed.add(bi);
-                  render();
-                },
-              }
-            : {}),
-        },
-        el(
+      el(
+        'span',
+        { class: 'ctrl-label' },
+        `${done}/${total} 블록` + (mentKeys.length ? ` · 멘트 ${mentDone}/${mentKeys.length}` : '')
+      )
+    ),
+    song.ment?.length || song.closing?.length
+      ? el(
           'div',
-          { class: 'block-head' },
-          el('span', { class: 'block-label' }, b.label),
-          el('span', { class: 'spacer' }),
+          { class: 'ctrl-row' },
+          el('span', { class: 'ctrl-label' }, '멘트'),
           el(
-            'button',
-            {
-              class: 'chk',
-              'aria-label': `${b.label} 암기 완료`,
-              'aria-pressed': String(isDone),
-              onclick: (e) => {
-                e.stopPropagation();
-                toggleBlock(bi);
-              },
-            },
-            isDone ? '✓' : ''
+            'div',
+            { class: 'seg', role: 'group', 'aria-label': '멘트 보이기' },
+            [
+              [true, '보이기'],
+              [false, '숨기기'],
+            ].map(([v, label]) =>
+              el(
+                'button',
+                {
+                  'aria-pressed': String((prefs.showMent !== false) === v),
+                  onclick: () => {
+                    prefs = savePrefs({ showMent: v });
+                    render();
+                  },
+                },
+                label
+              )
+            )
           )
-        ),
-        el('ul', { class: 'lyric' }, lines),
-        masked ? el('p', { class: 'mask-hint' }, `${b.lines.length}줄 — 탭하면 공개`) : null
-      );
-    })
+        )
+      : null
   );
+
+  // 멘트 카드는 가사 블록과 같은 가리기·체크를 쓴다. 키: 가사 = 블록 번호(0~), 멘트 = -1, 마무리 = -2
+  const showMent = prefs.showMent !== false;
+  const cards = [
+    showMent && song.ment?.length && { key: MENT_KEY, kind: 'ment', label: `🎤 멘트 · ${speakTime(song.ment)}`, lines: song.ment },
+    ...song.blocks.map((b, bi) => ({ key: bi, kind: b.kind, label: b.label, lines: b.lines })),
+    showMent && song.closing?.length && { key: CLOSING_KEY, kind: 'ment', label: `🎤 마무리 멘트 · ${speakTime(song.closing)}`, lines: song.closing },
+  ].filter(Boolean);
+
+  const blocks = el('div', { class: 'blocks' }, cards.map((c) => card(c, mode)));
 
   $('#view').replaceChildren(header, blocks);
   document.documentElement.style.setProperty('--font-scale', String(prefs.fontScale));
