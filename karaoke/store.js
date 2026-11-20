@@ -188,3 +188,16 @@ export function savePrefs(patch) {
   writeJSON('prefs', next);
   return next;
 }
+
+// ── 멘트 수정본 (docs/12 §3) ──────────────────────────
+// 폰에서 고친 멘트는 이 기기에만 저장된다. null = 기본 멘트(songs.js) 사용.
+// part: 'ment'(노래 전) | 'closing'(노래 뒤)
+export function loadMentEdit(songId, part) {
+  const v = readJSON(`ment.${songId}.${part}`);
+  return Array.isArray(v) ? v.map(String) : null;
+}
+
+export function saveMentEdit(songId, part, lines) {
+  if (lines == null) rawDel(`ment.${songId}.${part}`);
+  else writeJSON(`ment.${songId}.${part}`, lines);
+}

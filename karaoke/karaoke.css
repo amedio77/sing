@@ -313,10 +313,20 @@ button {
   gap: 12px;
 }
 @media (min-width: 768px) {
-  /* 태블릿·노트북: 2열 → 곡 전체 구조가 한 화면에 들어온다 */
+  /* 태블릿·노트북: 2열. 그리드(왼→오, 다음 줄)로 놓으면 읽는 순서가 지그재그라 헷갈린다.
+     다단(columns)으로 왼쪽 열을 위→아래로 다 읽고 오른쪽 열로 넘어가게 한다. */
   .blocks {
-    grid-template-columns: 1fr 1fr;
-    align-items: start;
+    display: block;
+    columns: 2;
+    column-gap: 12px;
+  }
+  .blocks > .block {
+    break-inside: avoid;
+    margin-bottom: 12px;
+  }
+  /* 멘트는 곡 앞뒤라 두 열을 가로질러 놓는다 */
+  .blocks > .block.ment {
+    column-span: all;
   }
 }
 .block {
@@ -338,8 +348,7 @@ button {
   border-left-color: var(--ink-dim);
 }
 .block.ment {
-  /* 무대 멘트 — 가사 블록과 구분되게, 2열 화면에서도 한 줄을 다 쓴다 */
-  grid-column: 1 / -1;
+  /* 무대 멘트 — 가사 블록과 구분되게 */
   border-left-color: var(--brand);
   background: color-mix(in srgb, var(--brand) 6%, var(--surface));
 }
@@ -802,4 +811,31 @@ details.io-box summary {
   font-size: 0.84rem;
   color: var(--ink-dim);
   margin: 6px 0 0;
+}
+
+/* 멘트 수정 (폰) */
+.chk.edit {
+  font-size: 0.9rem;
+}
+.ment-edit {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  font-size: calc(1rem * var(--font-scale));
+  line-height: 1.6;
+  resize: vertical;
+}
+.ment-help {
+  margin: 6px 0 10px;
+  font-size: 0.8rem;
+  color: var(--ink-dim);
+}
+.ment-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }

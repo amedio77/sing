@@ -3,7 +3,7 @@
 
 import { SONGS } from './songs.js';
 import { fmtTime } from './timeline.js';
-import { loadMemo, saveMemo, loadPrefs, savePrefs } from './store.js';
+import { loadMemo, saveMemo, loadPrefs, savePrefs, loadMentEdit, saveMentEdit } from './store.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -14,6 +14,7 @@ let prefs = loadPrefs();
 let song = SONGS.find((s) => s.id === prefs.lastSongId) || SONGS[0];
 let memo = loadMemo(song.id);
 const revealed = new Set(); // 가리기 모드에서 탭해 공개한 블록 (세션 한정)
+let editing = null; // 수정 중인 멘트 part ('ment' | 'closing')
 
 const MASK_MODES = [
   { value: 'reveal', label: '전체공개' },
@@ -74,6 +75,7 @@ function selectSong(next) {
   song = next;
   memo = loadMemo(song.id);
   revealed.clear();
+  editing = null;
   prefs = savePrefs({ lastSongId: song.id });
   renderTabs();
   render();
@@ -102,7 +104,49 @@ function speakTime(lines) {
   return `약 ${Math.max(5, Math.round(n / 5 / 5) * 5)}초`;
 }
 
-function card({ key, kind, label, lines: texts }, mode) {
+// 기본 멘트(songs.js) 위에 이 기기에서 고친 멘트가 있으면 그것을 쓴다
+function mentLines(part) {
+  return loadMentEdit(song.id, part) ?? song[part] ?? [];
+}
+
+const toLines = (text) =>
+  text
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+// 멘트 편집기 — 한 줄 = 한 호흡. 입력하는 동안 예상 시간을 바로 보여 준다
+function editor({ part, label, lines, edited }) {
+  const ta = el('textarea', { class: 'ment-edit', rows: String(Math.max(6, lines.length + 2)), 'aria-label': label });
+  ta.value = lines.join('\n');
+  const time = el('span', { class: 'ctrl-label' }, speakTime(lines));
+  ta.addEventListener('input', () => (time.textContent = speakTime(toLines(ta.value))));
+  const done = (fn) => () => {
+    fn();
+    editing = null;
+    render();
+  };
+  return el(
+    'section',
+    { class: 'block ment editing' },
+    el('div', { class: 'block-head' }, el('span', { class: 'block-label' }, label.split(' · ')[0] + ' 수정'), el('span', { class: 'spacer' }), time),
+    ta,
+    el('p', { class: 'ment-help' }, '한 줄에 한 호흡씩 적으세요. 이 기기에 저장됩니다.'),
+    el(
+      'div',
+      { class: 'ment-actions' },
+      el('button', { class: 'btn primary', onclick: done(() => saveMentEdit(song.id, part, toLines(ta.value))) }, '저장'),
+      el('button', { class: 'btn', onclick: done(() => {}) }, '취소'),
+      edited
+        ? el('button', { class: 'btn', onclick: done(() => saveMentEdit(song.id, part, null)) }, '기본 멘트로')
+        : null
+    )
+  );
+}
+
+function card(c, mode) {
+  if (c.part && editing === c.part) return editor(c);
+  const { key, kind, label, lines: texts } = c;
   const isDone = memo.checkedBlocks.has(key);
   const masked = mode === 'block' && !revealed.has(key);
 
@@ -134,6 +178,22 @@ function card({ key, kind, label, lines: texts }, mode) {
       { class: 'block-head' },
       el('span', { class: 'block-label' }, label),
       el('span', { class: 'spacer' }),
+      c.part
+        ? el(
+            'button',
+            {
+              class: 'chk edit',
+              'aria-label': `${label} 수정`,
+              title: '멘트 수정',
+              onclick: (e) => {
+                e.stopPropagation();
+                editing = c.part;
+                render();
+              },
+            },
+            '✏️'
+          )
+        : null,
       el(
         'button',
         {
@@ -233,10 +293,17 @@ function render() {
 
   // 멘트 카드는 가사 블록과 같은 가리기·체크를 쓴다. 키: 가사 = 블록 번호(0~), 멘트 = -1, 마무리 = -2
   const showMent = prefs.showMent !== false;
+  const talk = (part, key, title) => {
+    const base = song[part] || [];
+    if (!showMent || !base.length) return null;
+    const lines = mentLines(part);
+    const edited = loadMentEdit(song.id, part) != null;
+    return { key, kind: 'ment', part, edited, label: `${title} · ${speakTime(lines)}${edited ? ' · 수정됨' : ''}`, lines };
+  };
   const cards = [
-    showMent && song.ment?.length && { key: MENT_KEY, kind: 'ment', label: `🎤 멘트 · ${speakTime(song.ment)}`, lines: song.ment },
+    talk('ment', MENT_KEY, '🎤 멘트'),
     ...song.blocks.map((b, bi) => ({ key: bi, kind: b.kind, label: b.label, lines: b.lines })),
-    showMent && song.closing?.length && { key: CLOSING_KEY, kind: 'ment', label: `🎤 마무리 멘트 · ${speakTime(song.closing)}`, lines: song.closing },
+    talk('closing', CLOSING_KEY, '🎤 마무리 멘트'),
   ].filter(Boolean);
 
   const blocks = el('div', { class: 'blocks' }, cards.map((c) => card(c, mode)));
