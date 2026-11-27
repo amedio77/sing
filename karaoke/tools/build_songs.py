@@ -73,26 +73,42 @@ H = lambda s: re.sub(r'[^가-힣]', '', s)
 
 # ── 가사 원본 파싱 ────────────────────────────────────
 def parse_lyrics(path):
-    """'가사' 줄 이후의 `N) 제목` 섹션을 읽는다. 빈 줄은 무시(블록은 SONGS 설정이 정한다)."""
+    """'가사' 줄 이후의 `N) 제목` 섹션을 읽는다.
+    곡 안의 머리줄: [멘트] 노래 전 멘트 / [마무리] 노래 뒤 멘트 / 그 밖의 [이름] = 가사 블록(이름이 라벨).
+    [가사] 는 예전 형식(블록 구분 없음) — 그때는 SONGS 설정의 blocks 가 줄 수를 나눈다."""
     txt = io.open(path, encoding='utf-8').read()
     body = re.split(r'^\s*가사\s*$', txt, maxsplit=1, flags=re.M)
     body = body[1] if len(body) == 2 else txt
-    # 곡 안의 표지: [멘트] 노래 전 멘트 / [가사] 가사(기본) / [마무리] 노래 뒤 멘트
     out, cur, part = {}, None, 'lyrics'
     for raw in body.splitlines():
         line = raw.strip()
         m = re.match(r'^\d+\)\s*(.+)$', line)
+        h = re.match(r'^\[(.+)\]$', line)
         if m:
             cur, part = m.group(1).strip(), 'lyrics'
-            out[cur] = {'lyrics': [], 'ment': [], 'closing': []}
-        elif line in PARTS and cur:
-            part = PARTS[line]
+            out[cur] = {'lyrics': [], 'ment': [], 'closing': [], 'blocks': []}
+        elif h and cur:
+            name = h.group(1).strip()
+            if name in PARTS:
+                part = PARTS[name]
+            else:
+                part = 'lyrics'
+                out[cur]['blocks'].append([name, 0])
         elif line and cur:
             out[cur][part].append(re.sub(r'\s*\[\d+\]\s*$', '', line.lstrip('*').strip()))
+            if part == 'lyrics' and out[cur]['blocks']:
+                out[cur]['blocks'][-1][1] += 1
     return out
 
 
-PARTS = {'[멘트]': 'ment', '[가사]': 'lyrics', '[마무리]': 'closing'}
+def kind_of(label, cfg_blocks, i):
+    """블록 종류 — 설정의 같은 자리 라벨이 같으면 그 종류, 아니면 이름으로 짐작"""
+    if i < len(cfg_blocks) and cfg_blocks[i][2] == label:
+        return cfg_blocks[i][1]
+    return 'chorus' if '후렴' in label else 'bridge' if ('브릿지' in label or '전개' in label) else 'outro' if '엔딩' in label else 'verse'
+
+
+PARTS = {'멘트': 'ment', '가사': 'lyrics', '마무리': 'closing'}
 
 
 # ── 타이밍 근거 수집 ──────────────────────────────────
@@ -430,6 +446,8 @@ def main():
         sec = lyrics.get(cfg['title']) or {}
         lines = sec.get('lyrics')
         cfg = {**cfg, 'ment': sec.get('ment', []), 'closing': sec.get('closing', [])}
+        if sec.get('blocks'):  # 파일에 블록 머리줄이 있으면 그 구조가 우선
+            cfg['blocks'] = [(n, kind_of(name, cfg['blocks'], i), name) for i, (name, n) in enumerate(sec['blocks'])]
         if not lines:
             sys.exit(f"가사 원본에 「{cfg['title']}」 이 없다 (있는 곡: {list(lyrics)})")
         need = sum(n for n, _, _ in cfg['blocks'])
